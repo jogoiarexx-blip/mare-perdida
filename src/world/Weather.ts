@@ -2,6 +2,14 @@ import * as THREE from 'three';
 
 export type WeatherKind = 'limpo' | 'neblina' | 'chuva';
 
+/** Ciclos determinísticos de 4 minutos, sem dependência de estado salvo novo. */
+export function weatherAt(seed:number,seconds:number):WeatherKind {
+  const period=Math.max(0,Math.floor(seconds/240));
+  if(period===0)return 'limpo';
+  const n=((Math.imul((seed|0)^period,1597334677)>>>0)/4294967296);
+  return n<.23?'chuva':n<.40?'neblina':'limpo';
+}
+
 /**
  * Iluminação solar/lunar, neblina atmosférica e clima leve do Mar dos Destroços.
  */
@@ -18,6 +26,7 @@ export class WeatherSystem {
   private readonly warmSun = new THREE.Color(0xffb176);
   private readonly daySun = new THREE.Color(0xfff3db);
   private readonly moonSun = new THREE.Color(0x91b9eb);
+  private weatherElapsed=0;
   private readonly currentSky = new THREE.Color(0x91c9e5);
 
   constructor(private readonly scene: THREE.Scene, highQuality = true) {
@@ -48,6 +57,7 @@ export class WeatherSystem {
   }
 
   update(timeOfDay: number, anchorX: number, anchorZ: number, dt: number): void {
+    this.weatherElapsed+=dt;
     const targetStorm = this.weather === 'chuva' ? 0.55 : 0;
     this.stormFactor = THREE.MathUtils.lerp(this.stormFactor, targetStorm, Math.min(1, dt * 0.8));
 
@@ -77,6 +87,8 @@ export class WeatherSystem {
 
     this.sunLight.color.copy(this.moonSun).lerp(this.daySun, dayAmount).lerp(this.warmSun, duskAmount * 0.68);
     this.sunLight.intensity = THREE.MathUtils.lerp(0.28, 1.55, dayAmount) * (1 - this.stormFactor * 0.35);
-    this.hemiLight.intensity = THREE.MathUtils.lerp(0.38, 0.82, dayAmount);
+    // Clarão distante e suave, sem luz extra, sombras extras ou efeito estroboscópico.
+    const lightning=this.weather==='chuva'&&this.stormFactor>.35?Math.max(0,1-Math.abs((this.weatherElapsed%23)-17)*2):0;
+    this.hemiLight.intensity = THREE.MathUtils.lerp(0.38, 0.82, dayAmount)+lightning*.22;
   }
 }
