@@ -1,4 +1,5 @@
 import { ITEMS } from '../data/items';
+import { gameIcon } from './Icons';
 import { RECIPES, type RecipeDef, type StructureKind } from '../data/recipes';
 import type { Inventory } from '../player/Inventory';
 import type { QuestEngine } from '../quests/QuestEngine';
@@ -173,10 +174,10 @@ export class Modals {
     this.modalBackdrop.innerHTML = `
       <div class="modal-card">
         <div class="modal-tabs">
-          <button class="tab-btn ${tab === 'mochila' ? 'active' : ''}" data-t="mochila">🎒 Mochila & Fabricação</button>
-          <button class="tab-btn ${tab === 'construcao' ? 'active' : ''}" data-t="construcao">🔨 Construção Naval</button>
-          <button class="tab-btn ${tab === 'diario' ? 'active' : ''}" data-t="diario">📖 Diário</button>
-          <button class="tab-btn ${tab === 'opcoes' ? 'active' : ''}" data-t="opcoes">⚙️ Opções & Saves</button>
+          <button class="tab-btn ${tab === 'mochila' ? 'active' : ''}" data-t="mochila">${gameIcon('mochila')} Mochila & Fabricação</button>
+          <button class="tab-btn ${tab === 'construcao' ? 'active' : ''}" data-t="construcao">${gameIcon('construcao')} Construção Naval</button>
+          <button class="tab-btn ${tab === 'diario' ? 'active' : ''}" data-t="diario">${gameIcon('diario')} Diário</button>
+          <button class="tab-btn ${tab === 'opcoes' ? 'active' : ''}" data-t="opcoes">${gameIcon('opcoes')} Opções & Saves</button>
           <button class="btn" id="panel-close" style="margin-left:auto;">Fechar [Esc]</button>
         </div>
         <div class="modal-body" id="panel-body"></div>
@@ -205,8 +206,8 @@ export class Modals {
         return `
           <div class="slot-btn" style="width:100%;height:60px;" data-slot="${idx}" title="${def ? `${def.name}: ${def.description}` : 'Vazio'}">
             <span class="slot-key">${idx < 8 ? `Barra ${idx + 1}` : idx + 1}</span>
-            <span>${def ? def.icon : ''}</span>
-            <span class="slot-count">${s ? (s.durability !== undefined ? `${s.durability}⚡` : s.count) : ''}</span>
+            <span class="slot-art">${def ? gameIcon(def.id,'item') : ''}</span>
+            <span class="slot-count">${s ? (s.durability !== undefined ? `${s.durability}` : s.count) : ''}</span>
           </div>`;
       })
       .join('');
@@ -221,7 +222,7 @@ export class Modals {
         const hasMat = ctx.inventory.hasItems(r.ingredients);
         const canCraft = benchOk && hasMat;
         const ingText = r.ingredients
-          .map((i) => `${ITEMS[i.itemId]?.icon ?? ''} ${ITEMS[i.itemId]?.name ?? i.itemId} (${ctx.inventory.getItemCount(i.itemId)}/${i.count})`)
+          .map((i) => `${gameIcon(i.itemId)} ${ITEMS[i.itemId]?.name ?? i.itemId} (${ctx.inventory.getItemCount(i.itemId)}/${i.count})`)
           .join(' · ');
         const benchHint =
           r.bench === 'purificador' && !ctx.hasPurifier
@@ -288,12 +289,12 @@ export class Modals {
         .map((r) => {
           const hasMat = ctx.inventory.hasItems(r.ingredients);
           const ingText = r.ingredients
-            .map((i) => `${ITEMS[i.itemId]?.icon ?? ''} ${ITEMS[i.itemId]?.name ?? i.itemId} (${ctx.inventory.getItemCount(i.itemId)}/${i.count})`)
+            .map((i) => `${gameIcon(i.itemId)} ${ITEMS[i.itemId]?.name ?? i.itemId} (${ctx.inventory.getItemCount(i.itemId)}/${i.count})`)
             .join(' · ');
           return `
             <div class="recipe-row">
               <div>
-                <div><strong>${r.name}</strong> <span style="font-size:0.8em;color:var(--muted);">(+${r.structureMass ?? 20} massa)</span></div>
+                <div>${gameIcon(r.placesStructure ?? "empty",'item')} <strong>${r.name}</strong> <span style="font-size:0.8em;color:var(--muted);">(+${r.structureMass ?? 20} massa)</span></div>
                 <div style="font-size:0.8em;color:var(--muted);">${r.description} — ${ingText}</div>
               </div>
               <button class="btn ${hasMat ? 'primary' : ''}" data-build="${r.id}" ${hasMat ? '' : 'disabled'}>Posicionar</button>
@@ -318,19 +319,19 @@ export class Modals {
     const list = ctx.quests.getAllQuests();
     body.innerHTML = `
       <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:12px;font-size:0.9em;">
-        <span>✨ XP: <strong>${ctx.quests.xp}</strong></span>
-        <span>🪙 Créditos: <strong>${ctx.quests.credits}</strong></span>
-        <span>🏛️ Farol: <strong>${ctx.quests.reputation.farol}</strong></span>
-        <span>⚓ Docas Livres: <strong>${ctx.quests.reputation.docas}</strong></span>
+        <span>${gameIcon('xp')} XP: <strong>${ctx.quests.xp}</strong></span>
+        <span>${gameIcon('creditos')} Créditos: <strong>${ctx.quests.credits}</strong></span>
+        <span>${gameIcon('farol')} Farol: <strong>${ctx.quests.reputation.farol}</strong></span>
+        <span>${gameIcon('ancora')} Docas Livres: <strong>${ctx.quests.reputation.docas}</strong></span>
       </div>
       ${list
         .map(({ def, state }) => {
           const badge =
             state.status === 'COMPLETED'
-              ? '✅ Concluída'
+              ? gameIcon('check') + ' Concluída'
               : state.status === 'ACTIVE'
-                ? '🟡 Ativa'
-                : '🔒 Bloqueada';
+                ? gameIcon('diario') + ' Ativa'
+                : gameIcon('lock') + ' Bloqueada';
           const objs = def.objectives
             .map((o) => `${o.description} (${state.progress[o.id] ?? 0}/${o.count})`)
             .join(' · ');

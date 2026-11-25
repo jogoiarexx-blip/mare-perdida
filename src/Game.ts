@@ -821,7 +821,7 @@ export class Game {
       if (res.added > 0) {
         this.bus.emit('itemCollected', { itemId: entry.itemId, count: res.added, source });
         const def = ITEMS[entry.itemId];
-        this.hud.pushToast(`+${res.added} ${def?.icon ?? ''} ${def?.name ?? entry.itemId}`, 'info');
+        this.hud.pushToast(`+${res.added} ${def?.name ?? entry.itemId}`, 'info');
       }
       if (res.overflow > 0) {
         this.hud.pushToast('Mochila cheia! Esvazie ou construa um Baú.', 'warn');

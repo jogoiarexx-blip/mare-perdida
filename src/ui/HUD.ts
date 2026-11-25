@@ -1,4 +1,5 @@
 import { ITEMS } from '../data/items';
+import { gameIcon } from './Icons';
 import type { Inventory } from '../player/Inventory';
 import type { SurvivalSystem } from '../player/Survival';
 import type { QuestEngine } from '../quests/QuestEngine';
@@ -35,6 +36,7 @@ export class HUD {
 
   private dialogueQueue: Array<{ speaker: string; lines: string[] }> = [];
   private currentLineIdx = 0;
+  private hotbarSignature = '';
 
   onSelectHotbar?: (idx: number) => void;
   onOpenPanel?: (tab: 'mochila' | 'construcao' | 'diario' | 'opcoes') => void;
@@ -48,10 +50,10 @@ export class HUD {
       <div class="hud-top-left">
         <div class="glass-card" id="hud-vitals"></div>
         <div class="glass-card hud-interactive" id="hud-quick-btns" style="display:flex;gap:6px;flex-wrap:wrap;padding:6px 8px;">
-          <button class="btn" data-tab="mochila" title="Inventário e Fabricação (I)">🎒 [I]</button>
-          <button class="btn" data-tab="construcao" title="Construir na jangada (B)">🔨 [B]</button>
-          <button class="btn" data-tab="diario" title="Diário de Missões (J)">📖 [J]</button>
-          <button class="btn" data-menu="1" title="Menu e Saves (Esc)">⚙️ [Esc]</button>
+          <button class="btn" data-tab="mochila" title="Inventário e Fabricação (I)">${gameIcon('mochila')} [I]</button>
+          <button class="btn" data-tab="construcao" title="Construir na jangada (B)">${gameIcon('construcao')} [B]</button>
+          <button class="btn" data-tab="diario" title="Diário de Missões (J)">${gameIcon('diario')} [J]</button>
+          <button class="btn" data-menu="1" title="Menu e Saves (Esc)">${gameIcon('opcoes')} [Esc]</button>
         </div>
       </div>
 
@@ -77,10 +79,10 @@ export class HUD {
       <div class="touch-controls hidden" id="hud-touch">
         <div class="touch-pad" id="touch-pad"><div class="touch-knob" id="touch-knob"></div></div>
         <div class="touch-actions">
-          <button class="touch-btn" data-touch="use">Usar</button>
-          <button class="touch-btn" data-touch="interact">Ação</button>
-          <button class="touch-btn" data-touch="jump">Pular</button>
-          <button class="touch-btn" data-touch="build">Obra</button>
+          <button class="touch-btn" data-touch="use">${gameIcon('use','action')}<span>Usar</span></button>
+          <button class="touch-btn" data-touch="interact">${gameIcon('acao','action')}<span>Ação</span></button>
+          <button class="touch-btn" data-touch="jump">${gameIcon('pular','action')}<span>Pular</span></button>
+          <button class="touch-btn" data-touch="build">${gameIcon('construcao','action')}<span>Obra</span></button>
         </div>
       </div>
     `;
@@ -206,20 +208,20 @@ export class HUD {
   update(snap: HudSnapshot): void {
     const s = snap.survival;
     const rows = [
-      { label: 'Saúde', val: s.health, max: 100, color: '#ef4444' },
-      { label: 'Fome', val: s.hunger, max: 100, color: '#f59e0b' },
-      { label: 'Sede', val: s.thirst, max: 100, color: '#38bdf8' },
-      { label: 'Energia', val: s.stamina, max: 100, color: '#34d399' },
+      { label: 'Saúde', icon: 'saude', val: s.health, max: 100, color: '#ef4444' },
+      { label: 'Fome', icon: 'fome', val: s.hunger, max: 100, color: '#f59e0b' },
+      { label: 'Sede', icon: 'agua_pura', val: s.thirst, max: 100, color: '#38bdf8' },
+      { label: 'Energia', icon: 'energia', val: s.stamina, max: 100, color: '#34d399' },
     ];
     if (s.oxygen < s.maxOxygen - 0.5) {
-      rows.push({ label: 'Oxigênio', val: s.oxygen, max: s.maxOxygen, color: '#a78bfa' });
+      rows.push({ label: 'Oxigênio', icon: 'oxigenio', val: s.oxygen, max: s.maxOxygen, color: '#a78bfa' });
     }
 
     this.vitalsEl.innerHTML = rows
       .map(
         (r) => `
       <div class="vital-row">
-        <span class="vital-label">${r.label}</span>
+        <span class="vital-label">${gameIcon(r.icon)}<span>${r.label}</span></span>
         <div class="vital-bar"><div class="vital-fill" style="width:${Math.round((r.val / r.max) * 100)}%;background:${r.color};"></div></div>
         <span class="vital-val">${Math.ceil(r.val)}</span>
       </div>`
@@ -227,11 +229,11 @@ export class HUD {
       .join('');
 
     const b = snap.buoyancy;
-    const massWarn = b.overweight ? '⚠️ SOBREPESO' : b.lowMarginWarning ? '⚠️ Margem <15%' : 'Estável';
+    const massWarn = b.overweight ? 'SOBREPESO' : b.lowMarginWarning ? 'Margem <15%' : 'Estável';
     this.compassEl.innerHTML = `
       <span>Dia ${snap.dayCount} · ${snap.clockText} (${snap.weather})</span>
-      <span>🧭 ${snap.compassText}</span>
-      <span>⚖️ ${b.totalMass}/${b.capacity} (${massWarn})</span>
+      <span>${gameIcon('bussola')} ${snap.compassText}</span>
+      <span>${gameIcon('peso')} ${b.totalMass}/${b.capacity} (${massWarn})</span>
       <span style="color:var(--muted);">${snap.saveStatus}</span>
     `;
 
@@ -251,10 +253,10 @@ export class HUD {
         <div class="quest-obj">Explore o Mar dos Destroços ou complete secundárias no Diário [J].</div>`;
     }
     if (snap.sharkWarning) {
-      questHtml += `<div style="margin-top:6px;color:#f87171;font-weight:700;">🦈 ${snap.sharkWarning}</div>`;
+      questHtml += `<div style="margin-top:6px;color:#f87171;font-weight:700;">${gameIcon('tubarao')} ${snap.sharkWarning}</div>`;
     }
     if (snap.buildModeLabel) {
-      questHtml += `<div style="margin-top:6px;color:#34d399;font-weight:600;">🔨 Construindo: ${snap.buildModeLabel} ([R] Girar · [Click] Colocar · [B/Esc] Sair)</div>`;
+      questHtml += `<div style="margin-top:6px;color:#34d399;font-weight:600;">${gameIcon('construcao')} Construindo: ${snap.buildModeLabel} ([R] Girar · [Click] Colocar · [B/Esc] Sair)</div>`;
     }
     this.questEl.innerHTML = questHtml;
 
@@ -266,16 +268,20 @@ export class HUD {
     }
 
     // Hotbar 8 slots
+    const signature = JSON.stringify([snap.inventory.selectedHotbar, ...snap.inventory.slots.slice(0,8).map(slot => slot ? [slot.itemId,slot.count,slot.durability] : null)]);
+    if (signature === this.hotbarSignature) return;
+    this.hotbarSignature = signature;
     this.hotbarEl.innerHTML = '';
     for (let i = 0; i < 8; i++) {
       const slot = snap.inventory.slots[i];
       const def = slot ? ITEMS[slot.itemId] : null;
       const btn = document.createElement('button');
       btn.className = `slot-btn ${snap.inventory.selectedHotbar === i ? 'selected' : ''}`;
+      btn.setAttribute('aria-label', def ? `Slot ${i+1}: ${def.name}` : `Slot ${i+1}: vazio`);
       btn.title = def ? `${def.name}: ${def.description}` : `Slot ${i + 1}`;
       btn.innerHTML = `
         <span class="slot-key">${i + 1}</span>
-        <span>${def ? def.icon : ''}</span>
+        <span class="slot-art">${def ? gameIcon(def.id,'item') : ''}</span>
         <span class="slot-count">${slot ? (slot.durability !== undefined ? `${slot.durability}` : slot.count) : ''}</span>
       `;
       btn.addEventListener('click', () => this.onSelectHotbar?.(i));

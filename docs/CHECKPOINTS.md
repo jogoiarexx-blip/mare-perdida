@@ -35,3 +35,8 @@
 ### Melhoria visual 3 — equipamentos e ambiente
 - Gancho curvo, rede com trama, purificador com tubulação, grelha, rádio com painel, cobertura com ripas e plantas com folhas. Templates de módulos compartilhados por tipo, inclusive após remoção/reconstrução; atualização de rotação e troca de tipo.
 - Cardumes decorativos instanciados (12/30) visíveis abaixo da superfície e chuva em uma malha de segmentos (72/180). Sem entidades de gameplay ou novos assets. Testes de orçamento adicionados; validação visual e FPS reais pendentes.
+
+
+### Melhoria de interface — ícones marítimos
+- Catálogo SVG original e local para 23 itens, 12 construções, vitais, navegação, controles e diário; sem dependência de emoji para essas áreas.
+- Barra rápida só reconstrói os oito botões quando inventário, durabilidade ou seleção mudam; ícones com cache, rótulos acessíveis e estilos responsivos. Testes de catálogo adicionados; inspeção visual no navegador pendente.
