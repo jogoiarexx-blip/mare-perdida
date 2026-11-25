@@ -49,3 +49,7 @@
 
 ### Correção visual — borda reforçada
 - Moldura de aço aparente acima das tábuas, rebites e madeira escurecida, com geometria compartilhada e uma malha por reforço; preview de moldura no modo construção. Mantém a regra original de 100→220 HP ao reforçar uma fundação comum. Núcleo inicial preservado. Testes de geometria, visibilidade e resistência adicionados; validação visual no navegador pendente.
+
+
+### Melhoria de construção — mira e feedback
+- Interseção analítica com plano local do convés, respeitando inclinação, rotação e alcance de 5,5 m; preview atualizado após a câmera, revalidação no clique e mensagens específicas de bloqueio. Corrigida conversão horizontal da grade com rotação. Testes de seleção, materiais, limite e ocupação adicionados; teste manual PC/mobile pendente.

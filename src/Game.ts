@@ -11,6 +11,7 @@ import { HookController } from './player/HookAndTools';
 import { cellKey, RaftGrid } from './raft/Grid';
 import { StructureGraph } from './raft/StructureGraph';
 import { RaftRenderer } from './raft/RaftRenderer';
+import { BuildTargetPicker, evaluateBuild, type BuildTarget } from './raft/BuildTarget';
 import { OceanRenderer } from './world/Ocean';
 import { WeatherSystem } from './world/Weather';
 import { SectorManager } from './world/SectorManager';
@@ -66,7 +67,8 @@ export class Game {
   // Estado de construção
   private buildRecipe: RecipeDef | null = null;
   private buildRotation = 0;
-  private ghostTarget: { gx: number; gz: number; valid: boolean } | null = null;
+  private ghostTarget: BuildTarget | null = null;
+  private readonly buildPicker = new BuildTargetPicker();
 
   // Controles de entrada
   private keys = new Set<string>();
@@ -500,8 +502,6 @@ export class Game {
     );
     this.raftRenderer.syncWithGrid(this.raftGrid);
 
-    // Atualizar preview de construção
-    this.updateBuildGhost();
 
     // Autosave a cada 90s quando seguro
     this.autosaveTimer += dt;
@@ -514,6 +514,8 @@ export class Game {
   private render(frameDt: number): void {
     this.ocean.update(this.raftRenderer.x, this.raftRenderer.z, this.clock.elapsedSeconds, this.weather.stormFactor);
     this.player.applyToCamera(this.camera, this.clock.elapsedSeconds, this.options.cameraBob);
+    if (this.started && !this.modals.isOpen()) this.updateBuildGhost();
+    else this.raftRenderer.hideGhost();
     this.ambient.update(this.camera.position.x,this.camera.position.z,this.camera.position.y,this.clock.elapsedSeconds,this.weather.stormFactor,this.options.quality==='baixo');
     this.renderer.render(this.scene, this.camera);
 
@@ -552,35 +554,28 @@ export class Game {
   }
 
   private updateBuildGhost(): void {
-    if (!this.buildRecipe?.placesStructure) {
+    const recipe=this.buildRecipe;
+    if (!recipe?.placesStructure) {
       this.raftRenderer.hideGhost();
       this.ghostTarget = null;
       return;
     }
-    const dir = new THREE.Vector3();
-    this.camera.getWorldDirection(dir);
-    const lookTarget = this.camera.position.clone().addScaledVector(dir, 3.4);
-    const { gx, gz } = this.raftRenderer.worldToLocalGrid(lookTarget.x, lookTarget.z);
-    const kind = this.buildRecipe.placesStructure;
-
-    let valid = false;
-    if (kind === 'fundacao') {
-      valid = !this.raftGrid.getFoundation(gx, gz) && this.raftGrid.hasAdjacentFoundation(gx, gz);
-    } else if (kind === 'borda_reforcada') {
-      const f = this.raftGrid.getFoundation(gx, gz);
-      valid = Boolean(f && !f.reinforced);
-    } else {
-      valid = Boolean(this.raftGrid.getFoundation(gx, gz)) && !this.raftGrid.getModuleAt(gx, gz);
+    const cell = this.buildPicker.pick(this.camera,this.raftRenderer.root,this.player.position);
+    if(!cell) {
+      this.ghostTarget=null;
+      this.raftRenderer.hideGhost();
+      return;
     }
-    valid = valid && this.inventory.hasItems(this.buildRecipe.ingredients);
-
-    this.ghostTarget = { gx, gz, valid };
-    this.raftRenderer.showGhost(gx, gz, kind, valid, this.buildRotation);
+    const target=evaluateBuild(this.raftGrid,recipe.placesStructure,cell.gx,cell.gz,this.inventory.hasItems(recipe.ingredients));
+    this.ghostTarget=target;
+    this.raftRenderer.showGhost(target.gx,target.gz,recipe.placesStructure,target.valid,this.buildRotation);
   }
 
   private handlePrimaryUse(): void {
-    if (this.buildRecipe && this.ghostTarget) {
-      this.placeBuildAtGhost();
+    if (this.buildRecipe) {
+      this.updateBuildGhost();
+      if (this.ghostTarget) this.placeBuildAtGhost();
+      else this.hud.pushToast('Aponte para o convés ou para uma borda próxima.', 'warn');
       return;
     }
 
@@ -836,8 +831,9 @@ export class Game {
     const recipe = this.buildRecipe;
     const target = this.ghostTarget;
     if (!recipe || !target || !recipe.placesStructure) return;
-    if (!target.valid) {
-      this.hud.pushToast('Posição inválida ou recursos insuficientes.', 'warn');
+    const checked = evaluateBuild(this.raftGrid,recipe.placesStructure,target.gx,target.gz,this.inventory.hasItems(recipe.ingredients));
+    if (!checked.valid) {
+      this.hud.pushToast(checked.reason, 'warn');
       return;
     }
 
@@ -862,6 +858,8 @@ export class Game {
       this.bus.emit('structurePlaced', { kind, gx: target.gx, gz: target.gz });
       this.sfx.playBuild();
       if (kind === 'borda_reforcada') this.hud.pushToast('Borda reforçada instalada: 220/220 HP.', 'success');
+      else this.hud.pushToast(recipe.name + ' instalada.', 'success');
+      this.updateBuildGhost();
       if (kind !== 'fundacao' && kind !== 'borda_reforcada') {
         this.exitBuildMode();
       }
@@ -869,6 +867,7 @@ export class Game {
   }
 
   private handleDemolishAtGhost(): void {
+    this.updateBuildGhost();
     if (!this.ghostTarget) return;
     const { gx, gz } = this.ghostTarget;
     const res = StructureGraph.removeFoundation(this.raftGrid, gx, gz, false);
@@ -880,6 +879,8 @@ export class Game {
     this.inventory.addItem('madeira', 1);
     this.inventory.addItem('plastico', 1);
     this.raftRenderer.syncWithGrid(this.raftGrid);
+    this.quests.syncFoundationCount(this.raftGrid.foundations.size);
+    this.updateBuildGhost();
     this.hud.pushToast('Fundação desmontada (50% de reembolso).', 'info');
   }
 
@@ -1156,6 +1157,8 @@ export class Game {
   }
 
   private computePromptText(): string {
+    if (this.buildRecipe && !this.ghostTarget) return 'Aponte para o convés ou uma borda próxima (até 5,5 m).';
+    if (this.buildRecipe && this.ghostTarget && !this.ghostTarget.valid) return this.ghostTarget.reason;
     if (this.buildRecipe?.placesStructure === 'borda_reforcada') {
       const t = this.ghostTarget;
       const f = t ? this.raftGrid.getFoundation(t.gx,t.gz) : undefined;

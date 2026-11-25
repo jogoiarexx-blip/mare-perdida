@@ -292,8 +292,8 @@ export class RaftRenderer {
   worldToLocalGrid(worldX: number, worldZ: number): { gx: number; gz: number } {
     const dx = worldX - this.x;
     const dz = worldZ - this.z;
-    const cos = Math.cos(-this.heading);
-    const sin = Math.sin(-this.heading);
+    const cos = Math.cos(this.heading);
+    const sin = Math.sin(this.heading);
     const lx = dx * cos - dz * sin;
     const lz = dx * sin + dz * cos;
     return {
