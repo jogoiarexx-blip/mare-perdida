@@ -64,7 +64,7 @@ export class OceanRenderer {
     this.geometry = new THREE.PlaneGeometry(220, 220, segments, segments);
     this.geometry.rotateX(-Math.PI / 2);
     this.material = new THREE.MeshStandardMaterial({
-      color: 0xffffff, roughness: 0.36, metalness: 0.04,
+      color: 0xffffff, roughness: 0.29, metalness: 0.02,
     });
     this.material.onBeforeCompile = shader => {
       shader.uniforms.uSeaPhase = this.phase;
@@ -86,14 +86,18 @@ export class OceanRenderer {
         .replace('#include <color_fragment>', `#include <color_fragment>
           float amp = 0.22 + uSeaStorm * 0.35;
           float crest = clamp(vSeaPosition.y / (amp * 2.07) * 0.5 + 0.5, 0.0, 1.0);
-          vec3 seaColor = mix(vec3(0.012,0.09,0.21), vec3(0.028,0.42,0.49), crest);
-          float detailFade = 1.0 - smoothstep(16.0, 70.0, length(vViewPosition));
+          float dist = length(vViewPosition);
+          float detailFade = 1.0 - smoothstep(12.0, 68.0, dist);
           float ripple = sin(vSeaPosition.x*2.2+vSeaPosition.z*1.8+uRipplePhase.x);
           float crossRipple = sin(vSeaPosition.x*0.9-vSeaPosition.z*2.4+uRipplePhase.y);
-          float fleck = smoothstep(0.30,0.88,ripple*0.55+crossRipple*0.45);
-          float foam = smoothstep(0.80,0.97,crest) * mix(0.24,0.9,fleck) * detailFade;
-          seaColor += vec3(0.008,0.028,0.038) * ripple * detailFade;
-          diffuseColor.rgb *= mix(seaColor, vec3(0.72,0.86,0.90), foam);`);
+          float weave = ripple*0.58+crossRipple*0.42;
+          float fleck = smoothstep(0.25,0.87,weave);
+          vec3 seaColor = mix(vec3(0.012,0.075,0.14), vec3(0.035,0.36,0.37), smoothstep(0.1,0.9,crest));
+          seaColor += vec3(0.009,0.035,0.042)*weave*detailFade;
+          float foam = smoothstep(0.77-uSeaStorm*0.07,0.97,crest)*fleck*detailFade;
+          float rim = smoothstep(18.0,100.0,dist);
+          seaColor = mix(seaColor,vec3(0.065,0.25,0.31),rim*0.48);
+          diffuseColor.rgb *= mix(seaColor,vec3(0.79,0.89,0.87),foam*0.85);`);
     };
     this.mesh = new THREE.Mesh(this.geometry, this.material);
     this.mesh.receiveShadow = true;
