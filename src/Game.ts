@@ -424,8 +424,7 @@ export class Game {
     this.epoch = 1;
     this.clock.restore({ tick: 0, elapsedSeconds: 0, timeOfDay: 0.35, dayCount: 1 });
     this.raftGrid = new RaftGrid(this.options.quality === 'baixo' ? 64 : 256);
-    const initialAnchor=this.raftGrid.placeModule('ancora',1,1,0,35).module;
-    if(initialAnchor)initialAnchor.active=true;
+    // A jangada inicial fica à deriva; a âncora é construída com recursos pelo jogador.
     this.raftRenderer.x = 0;
     this.raftRenderer.z = 0;
     this.raftRenderer.heading = 0;
@@ -450,6 +449,7 @@ export class Game {
 
     this.player.moveToRaftSafe(this.raftRenderer, this.raftGrid);
     this.quests.triggerInitialDialogues();
+    this.hud.pushToast('Jangada à deriva. Fabrique uma âncora no menu B: 2 sucatas e 1 corda.', 'info');
   }
 
   private restoreFromSave(data: WorldSaveData): void {
@@ -1145,6 +1145,7 @@ export class Game {
       this.bus.emit('structurePlaced', { kind, gx: target.gx, gz: target.gz });
       this.sfx.playBuild();
       if (kind === 'borda_reforcada') this.hud.pushToast('Borda reforçada instalada: 220/220 HP.', 'success');
+      else if(kind==='ancora')this.hud.pushToast('Âncora instalada! Pressione H ou toque em Âncora para lançá-la.', 'success');
       else this.hud.pushToast(recipe.name + ' instalada.', 'success');
       this.updateBuildGhost();
       if (kind !== 'fundacao' && kind !== 'borda_reforcada') {
