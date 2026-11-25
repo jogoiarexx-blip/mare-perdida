@@ -24,6 +24,9 @@ export const ITEMS: Record<string, ItemDef> = {
   minerio_marinho:{id:'minerio_marinho',name:'Minério marinho',description:'Metal encontrado no fundo do mar.',category:'recurso',stackMax:20,icon:'🪨'},
   tanque_mergulho:{id:'tanque_mergulho',name:'Tanque de mergulho',description:'Enquanto estiver na mochila, aumenta o oxigênio de 45 para 90 segundos. Recarrega na superfície.',category:'ferramenta',stackMax:1,icon:'🤿',protectedOnDeath:true},
   remo:{id:'remo',name:'Remo de madeira',description:'Use O ou o botão Remar no convés. W/S avança e recua, A/D vira. Não precisa de leme.',category:'ferramenta',stackMax:1,icon:'🛶',protectedOnDeath:true},
+  lanterna_mergulho:{id:'lanterna_mergulho',name:'Lanterna de mergulho',description:'Ilumina automaticamente sob a água; selecione e use para ligar/desligar.',category:'ferramenta',stackMax:1,icon:'🔦',protectedOnDeath:true},
+  nadadeiras:{id:'nadadeiras',name:'Nadadeiras',description:'Na mochila, aumentam a velocidade de nado em 35%.',category:'ferramenta',stackMax:1,icon:'🤿',protectedOnDeath:true},
+  reliquia_atlas:{id:'reliquia_atlas',name:'Relíquia Atlas',description:'Artefato raro recuperado de um baú submerso.',category:'missao',stackMax:10,icon:'💎',protectedOnDeath:true},
   madeira: {
     id: 'madeira',
     name: 'Madeira à deriva',

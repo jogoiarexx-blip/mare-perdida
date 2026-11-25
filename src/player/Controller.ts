@@ -81,7 +81,8 @@ export class PlayerController {
     groundHeight: (x:number,z:number)=>number|null = ()=>null,
     blocksMovement:(x:number,z:number,y:number,fromX:number,fromZ:number)=>boolean=()=>false,
     raftHeadingDelta=0,
-    seaFloor:(x:number,z:number)=>number=()=>-3
+    seaFloor:(x:number,z:number)=>number=()=>-3,
+    swimMultiplier=1
   ): void {
     this.yaw -= input.yawDelta;
     this.pitch = THREE.MathUtils.clamp(this.pitch - input.pitchDelta, -1.32, 1.28);
@@ -110,14 +111,14 @@ export class PlayerController {
     this.inWater = (!cellBelow||this.position.y<deckTopY-.4) && !dryLand && this.position.y <= waveY + 0.18;
     this.underwater = this.inWater && this.position.y + this.eyeHeight < waveY + 0.05;
 
-    const baseSpeed = this.inWater ? 3.8 : input.sprint && canSprint ? 6.6 : 4.5;
+    const baseSpeed = this.inWater ? 3.8*swimMultiplier : input.sprint && canSprint ? 6.6 : 4.5;
     this.velocity.x = THREE.MathUtils.lerp(this.velocity.x, wish.x * baseSpeed, Math.min(1, dt * 12));
     this.velocity.z = THREE.MathUtils.lerp(this.velocity.z, wish.z * baseSpeed, Math.min(1, dt * 12));
 
     if (this.inWater) {
       // Flutuação suave + impulso ao pular/subir para voltar à jangada
       const dive=Math.sin(this.pitch)*input.forward;
-      const target=input.jump?4.6:Math.abs(dive)>.22?dive*3.4:this.position.y>waveY-.55?(waveY-.55-this.position.y)*5:0;
+      const target=input.jump?4.6:Math.abs(dive)>.22?dive*3.4*swimMultiplier:this.position.y>waveY-.55?(waveY-.55-this.position.y)*5:0;
       this.velocity.y=THREE.MathUtils.lerp(this.velocity.y,target,Math.min(1,dt*8));
       this.grounded = false;
     } else {

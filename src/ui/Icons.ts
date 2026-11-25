@@ -8,6 +8,9 @@ const GLYPHS: Record<string, readonly [string,string]> = {
   "minerio_marinho":["#8faabb","<path d=\"m2 14 5-10 10-1 5 9-6 9H7Zm5-10 5 10 5-11M2 14h10l4 7m-4-7 10-2\"/>"],
   "tanque_mergulho":["#81b5c5","<rect x=\"6\" y=\"5\" width=\"12\" height=\"17\" rx=\"5\"/><path d=\"M10 5V2h4v3m4 5h3v7m-15-4h12\"/>"],
   "remo":["#c99d67","<path d=\"M4 21l2-5 9-9 3 3-9 9ZM15 7l3-5 4 4-4 4\"/>"],
+  "lanterna_mergulho":["#ffe09b","<path d=\"M3 9h9l7-5v16l-7-5H3Z M21 5l2-2m-2 9h2m-2 7 2 2\"/>"],
+  "nadadeiras":["#5dbac8","<path d=\"M3 3h6v7l3 10H1l2-10Zm12 0h6v7l2 10H12l3-10Z\"/>"],
+  "reliquia_atlas":["#e0bd70","<path d=\"m12 2 9 7-9 13L3 9Zm-9 7h18M8 9l4 13 4-13\"/>"],
   "madeira": [
     "#ce935c",
     "<path d=\"M3 8 16 3l5 5v10L8 22l-5-5Z\"/><path d=\"m3 8 5 5 13-5M8 13v9m3-10 7-3m-7 7 7-3\"/>"

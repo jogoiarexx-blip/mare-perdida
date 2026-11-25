@@ -19,6 +19,7 @@ import { BuildTargetPicker, evaluateBuild, type BuildTarget } from './raft/Build
 import { nearestGridEntry, FlotsamBuckets } from './raft/GridQueries';
 import { OceanRenderer,getWaveHeight } from './world/Ocean';
 import { DiveWorld } from './world/DiveWorld';
+import { DivePredators } from './ai/DivePredators';
 import { seabedHeight,oxygenCapacity } from './world/DiveLayout';
 import { ChunkManager } from './world/ChunkManager';
 import { biomeLabel } from './world/ChunkLayout';
@@ -57,6 +58,9 @@ export class Game {
   private chunks!: ChunkManager;
   private readonly fauna=new IslandFauna();
   private dive!:DiveWorld;
+  private readonly predators=new DivePredators();
+  private readonly diveLamp=new THREE.SpotLight(0xbdeaff,18,18,.6,.5,2);
+  private lampEnabled=true;
   private readonly diveFog=new THREE.FogExp2(0x155065,.075);
   private readonly diveSky=new THREE.Color(0x155065);
   private readonly discovery=new Discovery();
@@ -154,7 +158,7 @@ export class Game {
     this.chunks=new ChunkManager(this.seed,low,true);
     this.scene.add(this.chunks.group);
     this.scene.add(this.fauna.group);
-    this.dive=new DiveWorld(this.seed,low);this.scene.add(this.dive.group);
+    this.dive=new DiveWorld(this.seed,low);this.scene.add(this.dive.group,this.predators.group,this.diveLamp,this.diveLamp.target);this.diveLamp.visible=false;
     this.chunks.update(0,0,2);
     this.sector = new SectorManager(this.seed);
     this.scene.add(this.sector.group);
@@ -397,7 +401,7 @@ export class Game {
     this.renderOrigin.reset();this.renderer.shadowMap.needsUpdate=true;
     this.seed = Math.floor(Math.random() * 900000) + 100000;
     this.chunks.reset(this.seed);
-    this.fauna.reset();this.dive.reset(this.seed,this.options.quality==='baixo');
+    this.fauna.reset();this.predators.reset();this.lampEnabled=true;this.dive.reset(this.seed,this.options.quality==='baixo');
     this.discovery.reset();this.discovery.visit(0,0);this.helmKey=null;this.rowing=false;
     this.chunks.update(0,0,9);
     this.epoch = 1;
@@ -450,7 +454,7 @@ export class Game {
     this.sharkRepelledCount = data.worldFlags.sharkRepelledCount;
     this.player.position.set(data.playerPosition.x, data.playerPosition.y, data.playerPosition.z);
     this.chunks.reset(this.seed,this.options.quality==='baixo',data.depletedIslandResources??[]);
-    this.fauna.reset(data.animalDeltas??[]);this.dive.reset(this.seed,this.options.quality==='baixo',data.depletedDiveResources??[]);
+    this.fauna.reset(data.animalDeltas??[]);this.predators.reset();this.lampEnabled=true;this.dive.reset(this.seed,this.options.quality==='baixo',data.depletedDiveResources??[]);
     this.discovery.reset(data.discoveredChunks??[]);this.discovery.visit(this.player.position.x,this.player.position.z);this.helmKey=null;this.rowing=false;
     this.chunks.update(this.player.position.x,this.player.position.z,2);
 
@@ -534,9 +538,10 @@ export class Game {
       raftDeltaX,
       raftDeltaZ,
       (x,z)=>this.chunks.groundHeight(x,z),
-      (x,z,y,fromX,fromZ)=>this.chunks.blocksMovement(x,z,y,fromX,fromZ),
+      (x,z,y,fromX,fromZ)=>this.chunks.blocksMovement(x,z,y,fromX,fromZ)||this.dive.blocksMovement(x,z,y,fromX,fromZ),
       this.raftRenderer.heading-prevHeading,
-      (x,z)=>seabedHeight(x,z,this.seed)
+      (x,z)=>seabedHeight(x,z,this.seed),
+      this.inventory.getItemCount('nadadeiras')>0?1.35:1
     );
     this.yawDeltaAccum = 0;
     this.pitchDeltaAccum = 0;
@@ -545,6 +550,7 @@ export class Game {
     const sheltered = this.raftGrid.hasModuleKind('cobertura');
     this.survival.setOxygenCapacity(oxygenCapacity(this.inventory.getItemCount('tanque_mergulho')>0));
     this.dive.update(this.player.position.x,this.player.position.z,this.player.inWater);
+    this.predators.update(dt,this.player.position,this.player.underwater&&!this.survival.dead,this.seed,this.options.quality==='baixo',(damage,name)=>{this.survival.applyDamage(damage*(this.survival.difficulty==='dificil'?1.3:this.survival.difficulty==='historia'?.55:1));this.hud.pushToast(name+' atacou!','danger');},(x,z)=>this.chunks.groundHeight(x,z));
     this.survival.update(dt, {
       sprinting: !steering && sprint && (Math.abs(forward) > 0.1 || Math.abs(strafe) > 0.1),
       underwater: this.player.underwater,
@@ -636,6 +642,8 @@ export class Game {
     this.ambient.update(this.camera.position.x,this.camera.position.z,this.camera.position.y,this.clock.elapsedSeconds,this.weather.stormFactor,this.options.quality==='baixo');
     if(this.renderOrigin.update(this.camera.position.x,this.camera.position.z))this.renderer.shadowMap.needsUpdate=true;
     const submerged=this.camera.position.y<getWaveHeight(this.camera.position.x,this.camera.position.z,this.clock.elapsedSeconds,this.weather.stormFactor)-.04;
+    this.diveLamp.visible=submerged&&this.lampEnabled&&this.inventory.getItemCount('lanterna_mergulho')>0;
+    if(this.diveLamp.visible){this.diveLamp.position.copy(this.camera.position);this.camera.getWorldDirection(this.handPosition);this.diveLamp.target.position.copy(this.camera.position).addScaledVector(this.handPosition,10);}
     const fog=this.scene.fog,sky=this.scene.background;
     if(submerged){this.scene.fog=this.diveFog;this.scene.background=this.diveSky;}
     try{this.renderOrigin.render(this.scene,this.camera,()=>this.renderer.render(this.scene,this.camera));}finally{this.scene.fog=fog;this.scene.background=sky;}
@@ -643,7 +651,7 @@ export class Game {
       this.perfElapsed=0;
       const s=this.perf.snapshot(),info=this.renderer.info;
       const heap=(performance as Performance&{memory?:{usedJSHeapSize:number}}).memory?.usedJSHeapSize;
-      this.hud.updatePerformance([idle?'Pausado':s.fps+' FPS · p95 '+s.p95ms.toFixed(1)+' ms', 'Draw calls '+info.render.calls+' · '+info.render.triangles.toLocaleString('pt-BR')+' tris', 'Geometrias '+info.memory.geometries+' · texturas '+info.memory.textures, 'Chunks '+this.chunks.loadedCount+' · fila '+this.chunks.pendingCount+' · ilhas visíveis '+this.chunks.visibleIslandCount, 'Worker '+(this.chunks.workerActive?'ativo':'local')+' · DPR '+this.resolution.scale.toFixed(2), 'Origem '+this.renderOrigin.x+','+this.renderOrigin.z+' · '+this.renderOrigin.shifts+' ajustes', 'Fauna ativa '+this.fauna.activeCount, 'Quadros >33 ms: '+s.longFrames+(heap!==undefined?' · Heap JS '+Math.round(heap/1048576)+' MB':'')]);
+      this.hud.updatePerformance([idle?'Pausado':s.fps+' FPS · p95 '+s.p95ms.toFixed(1)+' ms', 'Draw calls '+info.render.calls+' · '+info.render.triangles.toLocaleString('pt-BR')+' tris', 'Geometrias '+info.memory.geometries+' · texturas '+info.memory.textures, 'Chunks '+this.chunks.loadedCount+' · fila '+this.chunks.pendingCount+' · ilhas visíveis '+this.chunks.visibleIslandCount, 'Worker '+(this.chunks.workerActive?'ativo':'local')+' · DPR '+this.resolution.scale.toFixed(2), 'Origem '+this.renderOrigin.x+','+this.renderOrigin.z+' · '+this.renderOrigin.shifts+' ajustes', 'Fauna ativa '+this.fauna.activeCount+' · predadores '+this.predators.activeCount+' · tiles '+this.dive.loadedCount, 'Quadros >33 ms: '+s.longFrames+(heap!==undefined?' · Heap JS '+Math.round(heap/1048576)+' MB':'')]);
     }
 
     if (this.started && this.hudElapsed >= (this.buildRecipe ? .08 : .10)) {
@@ -740,6 +748,7 @@ export class Game {
     const slot = this.inventory.getSelectedSlot();
     const itemId = slot?.itemId;
     if(itemId==='remo'){this.toggleRowing();return;}
+    if(itemId==='lanterna_mergulho'){this.lampEnabled=!this.lampEnabled;this.hud.pushToast(this.lampEnabled?'Lanterna ligada.':'Lanterna desligada.','info');return;}
 
     // Consumíveis na barra rápida
     if (itemId && (ITEMS[itemId]?.hungerRestore !== undefined || ITEMS[itemId]?.thirstRestore !== undefined)) {
@@ -763,6 +772,8 @@ export class Game {
 
     // Lança contra Mandíbula Branca
     if (itemId === 'lanca') {
+      const marine=this.player.underwater?this.predators.strike(this.player.position):null;
+      if(marine){if(marine.hit){this.inventory.damageSlot(this.inventory.selectedHotbar,1);this.sfx.playBuild();this.hud.pushToast(marine.name+' · '+marine.hp+' HP','info');}return;}
       const animal=this.fauna.strike(this.player.position);
       if(animal){
         if(animal.hit){this.inventory.damageSlot(this.inventory.selectedHotbar,1);this.sfx.playBuild();this.hud.pushToast(animal.killed?animal.name+' abatido. Recolha a bolsa após 5 segundos.':animal.name+' · '+animal.hp+' HP','info');}
@@ -1408,7 +1419,7 @@ export class Game {
       promptText: prompt,
       buildModeLabel: this.buildRecipe ? this.buildRecipe.name : null,
       saveStatus: this.saveStatus,
-      sharkWarning:sharkWarning??this.fauna.warning(this.player.position),
+      sharkWarning:sharkWarning??this.predators.warning(this.player.position)??this.fauna.warning(this.player.position),
     });
   }
 

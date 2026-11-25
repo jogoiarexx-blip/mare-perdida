@@ -99,3 +99,7 @@
 
 ### Navegação acessível — remo e ancoragem
 - Remo portátil fabricável (2 madeiras + 1 plástico), entregue em mundos novos; âncora inicial instalada e lançada nos mundos novos. Saves existentes não recebem itens ou módulos automaticamente, mas podem fabricar remo e âncora improvisada (2 sucatas + 1 corda). Botões Remar/Âncora/Vela, atalhos O/H/T, controle direcional, remo visual, indicação de estado e rumo/distância da jangada, retorno ao convés por E/Ação próximo à borda. Âncora impede deslocamento e rotação; salvamento existente preserva estado do módulo. Testes adicionados; gameplay desktop/mobile pendente.
+
+
+### CP10.3 — naufrágios e perigos submersos
+- Tubarão de recife, moreia e água-viva com IA local, ataque sinalizado, lança, LOD por distância, limite de três entidades e descarte ao sair da água. Predadores podem reaparecer ao retornar ao setor; não concedem loot para evitar duplicação. Casco procedural aberto nas extremidades, paredes laterais com colisão horizontal e baú raro persistente com relíquia Atlas; interiores simples, sem colisão vertical do teto. Lanterna com SpotLight sem sombra, ativação automática sob a água e toggle por uso; nadadeiras +35% no nado. Três contratos DIVE01–03, preservando IDs previstos do GDD; testes adicionados. Validação manual de controles, geometria/colisão dos naufrágios e FPS pendente.

@@ -34,6 +34,8 @@ export interface RecipeDef {
 }
 
 export const RECIPES: RecipeDef[] = [
+  {id:'rec_lanterna_mergulho',name:'Lanterna de mergulho',description:'Iluminação subaquática sem sombras extras.',bench:'manual',ingredients:[{itemId:'plastico',count:3},{itemId:'sucata',count:2},{itemId:'minerio_marinho',count:1}],outputItemId:'lanterna_mergulho',outputCount:1},
+  {id:'rec_nadadeiras',name:'Nadadeiras',description:'Aumenta a velocidade de nado em 35%.',bench:'manual',ingredients:[{itemId:'plastico',count:4},{itemId:'alga_marinha',count:2},{itemId:'corda',count:1}],outputItemId:'nadadeiras',outputCount:1},
   {id:'rec_remo',name:'Remo de madeira',description:'Navegação manual desde o início, mesmo sem leme ou vela.',bench:'manual',ingredients:[{itemId:'madeira',count:2},{itemId:'plastico',count:1}],outputItemId:'remo',outputCount:1},
   {id:'rec_tanque_mergulho',name:'Tanque de mergulho',description:'Aumenta a capacidade de oxigênio para 90 segundos.',bench:'manual',ingredients:[{itemId:'plastico',count:5},{itemId:'sucata',count:4},{itemId:'minerio_marinho',count:2}],outputItemId:'tanque_mergulho',outputCount:1},
   {id:'rec_fibra_alga',name:'Fibra de algas',description:'Transforma algas em fibra.',bench:'manual',ingredients:[{itemId:'alga_marinha',count:2}],outputItemId:'fibra',outputCount:2},

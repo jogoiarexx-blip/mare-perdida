@@ -1,5 +1,5 @@
 import type { EventBus } from '../core/EventBus';
-import { CHAPTER_1_QUESTS, type QuestDef, type QuestStatus } from '../data/quests';
+import { CHAPTER_1_QUESTS, DIVE_QUESTS, type QuestDef, type QuestStatus } from '../data/quests';
 
 export interface QuestRuntimeState {
   status: QuestStatus;
@@ -40,7 +40,7 @@ export class QuestEngine {
 
   constructor(
     private readonly bus: EventBus,
-    private readonly defs: QuestDef[] = CHAPTER_1_QUESTS
+    private readonly defs: QuestDef[] = [...CHAPTER_1_QUESTS,...DIVE_QUESTS]
   ) {
     this.initStates();
     this.bindEvents();
@@ -75,6 +75,7 @@ export class QuestEngine {
     this.syncFoundationCount(snap.foundationCount);
 
     const toolTargetToItem: Record<string, string> = {
+      rec_tanque_mergulho:'tanque_mergulho',rec_lanterna_mergulho:'lanterna_mergulho',rec_nadadeiras:'nadadeiras',
       rec_gancho: 'gancho',
       rec_lanca: 'lanca',
       rec_vara_pesca: 'vara_pesca',

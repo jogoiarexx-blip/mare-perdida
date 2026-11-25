@@ -289,3 +289,10 @@ export const CHAPTER_1_QUESTS: QuestDef[] = [
     failPolicy: 'Pode descansar sempre que houver uma cama no convés.',
   },
 ];
+
+/** Contratos paralelos, sem ocupar IDs reservados da campanha no GDD. */
+export const DIVE_QUESTS:QuestDef[]=[
+ {id:'DIVE01',chapter:3,type:'side',title:'Primeira descida',summary:'Recupere algas e minério do fundo do mar.',requires:[],objectives:[{id:'d1a',description:'Coletar 2 algas',kind:'collect',target:'alga_marinha',count:2,scope:'world'},{id:'d1b',description:'Coletar 2 minérios',kind:'collect',target:'minerio_marinho',count:2,scope:'world'}],rewards:{xp:55,credits:20},failPolicy:'Recursos disponíveis em novos setores.'},
+ {id:'DIVE02',chapter:3,type:'side',title:'Equipamento de mergulho',summary:'Fabrique tanque, lanterna e nadadeiras.',requires:[],objectives:[{id:'d2a',description:'Fabricar tanque',kind:'craft',target:'rec_tanque_mergulho',count:1,scope:'personal'},{id:'d2b',description:'Fabricar lanterna',kind:'craft',target:'rec_lanterna_mergulho',count:1,scope:'personal'},{id:'d2c',description:'Fabricar nadadeiras',kind:'craft',target:'rec_nadadeiras',count:1,scope:'personal'}],rewards:{xp:80,credits:30},failPolicy:'Receitas sempre disponíveis.'},
+ {id:'DIVE03',chapter:3,type:'side',title:'Segredos do naufrágio',summary:'Explore um casco e recupere uma relíquia Atlas.',requires:[],objectives:[{id:'d3a',description:'Recuperar relíquia Atlas',kind:'collect',target:'reliquia_atlas',count:1,scope:'world'}],rewards:{xp:100,credits:50},failPolicy:'Procure outro naufrágio em novos setores.'}
+];
