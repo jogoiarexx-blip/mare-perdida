@@ -148,6 +148,7 @@ export const RECIPES: RecipeDef[] = [
     outputItemId: 'peixe_assado',
     outputCount: 1,
   },
+  {id:'rec_carne_assada',name:'Assar carne',description:'Prepare a carne da caça na churrasqueira.',bench:'churrasqueira',ingredients:[{itemId:'carne_crua',count:1}],outputItemId:'carne_assada',outputCount:1},
   // Construção naval na grade de 1m
   {
     id: 'build_fundacao',

@@ -1,3 +1,4 @@
+import { validAnimalDelta,type AnimalDelta } from '../ai/IslandFauna';
 import { validDiscoveredChunk } from '../world/Navigation';
 import { validResourceId } from '../world/IslandResources';
 import type { SerializedInventory } from '../player/Inventory';
@@ -35,6 +36,7 @@ export interface WorldSaveData {
   quests: SerializedQuestEngine;
   depletedIslandResources?: string[];
   discoveredChunks?:string[];
+  animalDeltas?:AnimalDelta[];
   worldFlags: {
     wreckLooted: boolean;
     buoyInspected: boolean;
@@ -103,7 +105,8 @@ export function validateSaveData(raw: unknown): raw is WorldSaveData {
     Array.isArray(obj.raft?.foundations) &&
     Boolean(obj.quests) &&
     (obj.depletedIslandResources===undefined || (Array.isArray(obj.depletedIslandResources) && obj.depletedIslandResources.every(validResourceId))) &&
-    (obj.discoveredChunks===undefined||(Array.isArray(obj.discoveredChunks)&&obj.discoveredChunks.every(validDiscoveredChunk)))
+    (obj.discoveredChunks===undefined||(Array.isArray(obj.discoveredChunks)&&obj.discoveredChunks.every(validDiscoveredChunk))) &&
+    (obj.animalDeltas===undefined||(Array.isArray(obj.animalDeltas)&&obj.animalDeltas.every(validAnimalDelta)))
   );
 }
 

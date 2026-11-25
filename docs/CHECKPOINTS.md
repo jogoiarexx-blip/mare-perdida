@@ -12,6 +12,7 @@
 | CP07 | Autoridade e coop | PENDENTE | Depende do transporte e da sincronização autoritativa. |
 | CP08 | Capítulo 1 (M01–M05, S001–S010, B01 Mandíbula Branca) | EM TESTE | Fluxo lógico validado em `quest-engine.test.ts` (2/2); pendente playthrough humano completo do chefe B01 em 3D |
 | CP09 | Streaming e biomas | EM TESTE — etapa 6 | Setores de 128 m, ilhas determinísticas, LOD, descarregamento e solo navegável. Pendentes deltas persistentes, biomas, origem flutuante, perfil real e coop. |
+| CP10 | Capítulos 2–3 | EM TESTE — etapa 1 | Fauna terrestre, combate, caça e loot persistente; missões M06–15, exploração submarina e chefes B02–03 ainda pendentes. |
 
 ## Evidências do CP06
 
@@ -86,3 +87,7 @@
 
 ### CP09.6 — origem flutuante de renderização
 - Origem gráfica próxima à câmera, ajustada em múltiplos de 128 m ao ultrapassar 512 m em X/Z. Simulação, saves, chunks, minimapa e recursos continuam em coordenadas globais double; transformação temporária da cena/câmera com restauração e atualização de sombras ao trocar origem. Fases das ondas e ripples reduzidas antes da GPU, partículas/cardumes/corda em buffers locais. Broadphase costeira conservadora evita testes de altura por fundação em mar aberto; perfis de altura sem alocação por consulta. F3 exibe origem e ajustes. Testes de invariância, exceção, onda e broadphase adicionados. Não é migração completa da simulação para coordenadas inteiras por setor; navegação extensa, shader e sombras em WebGL real, memória/FPS e P2P ainda precisam de validação.
+
+
+### CP10.1 — fauna terrestre
+- Dois caranguejos e um javali determinísticos por ilha; somente uma ilha ativa, patrulha/perseguição/preparação/recuperação/retorno, ataque com aviso e alcance, colisão básica com recursos. Lança com intervalo de 0,55 s contra fauna, corpo ocultado após 5 s e bolsa de carne persistente; mochila cheia mantém loot, save antigo compatível. Carne crua e assada, receita e interação na churrasqueira. Monitor F3 mostra fauna ativa. Testes de IA, orçamento, persistência e receita; verificação visual, FPS e campanha subsequente pendentes.

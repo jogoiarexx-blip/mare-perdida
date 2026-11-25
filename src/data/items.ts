@@ -84,6 +84,8 @@ export const ITEMS: Record<string, ItemDef> = {
     stackMax: 20,
     icon: '🧵',
   },
+  carne_crua:{id:'carne_crua',name:'Carne crua',description:'Carne obtida por caça; asse na churrasqueira.',category:'consumivel',stackMax:20,icon:'🥩',hungerRestore:10,thirstRestore:-4},
+  carne_assada:{id:'carne_assada',name:'Carne assada',description:'Refeição preparada na churrasqueira.',category:'consumivel',stackMax:20,icon:'🍖',hungerRestore:42,healthRestore:8},
   peixe_cru: {
     id: 'peixe_cru',
     name: 'Peixe cru',

@@ -5,6 +5,7 @@ import { GameLoop } from './core/GameLoop';
 import { AdaptiveResolution } from './core/RenderBudget';
 import { PerformanceMonitor } from './core/PerformanceMonitor';
 import { RenderOrigin } from './world/RenderOrigin';
+import { IslandFauna } from './ai/IslandFauna';
 import { ITEMS } from './data/items';
 import type { RecipeDef, StructureKind } from './data/recipes';
 import { Inventory } from './player/Inventory';
@@ -52,6 +53,7 @@ export class Game {
   private weather!: WeatherSystem;
   private sector!: SectorManager;
   private chunks!: ChunkManager;
+  private readonly fauna=new IslandFauna();
   private readonly discovery=new Discovery();
   private readonly perf=new PerformanceMonitor();
   private readonly renderOrigin=new RenderOrigin();
@@ -144,6 +146,7 @@ export class Game {
     this.weather = new WeatherSystem(this.scene, !low);
     this.chunks=new ChunkManager(this.seed,low,true);
     this.scene.add(this.chunks.group);
+    this.scene.add(this.fauna.group);
     this.chunks.update(0,0,2);
     this.sector = new SectorManager(this.seed);
     this.scene.add(this.sector.group);
@@ -378,6 +381,7 @@ export class Game {
     this.renderOrigin.reset();this.renderer.shadowMap.needsUpdate=true;
     this.seed = Math.floor(Math.random() * 900000) + 100000;
     this.chunks.reset(this.seed);
+    this.fauna.reset();
     this.discovery.reset();this.discovery.visit(0,0);this.helmKey=null;
     this.chunks.update(0,0,9);
     this.epoch = 1;
@@ -427,6 +431,7 @@ export class Game {
     this.sharkRepelledCount = data.worldFlags.sharkRepelledCount;
     this.player.position.set(data.playerPosition.x, data.playerPosition.y, data.playerPosition.z);
     this.chunks.reset(this.seed,this.options.quality==='baixo',data.depletedIslandResources??[]);
+    this.fauna.reset(data.animalDeltas??[]);
     this.discovery.reset(data.discoveredChunks??[]);this.discovery.visit(this.player.position.x,this.player.position.z);this.helmKey=null;
     this.chunks.update(this.player.position.x,this.player.position.z,2);
 
@@ -520,6 +525,11 @@ export class Game {
       underwater: this.player.underwater,
       sheltered,
     });
+    const land=this.chunks.groundHeight(this.player.position.x,this.player.position.z);
+    this.fauna.update(dt,this.chunks.nearestIsland(this.player.position.x,this.player.position.z),this.player.position,land!==null&&land>.45&&!this.player.inWater&&!this.survival.dead,(damage,name)=>{
+      this.survival.applyDamage(damage*(this.survival.difficulty==='dificil'?1.3:this.survival.difficulty==='historia'?.55:1));
+      this.hud.pushToast(name+' atacou!','danger');
+    },(x,z,y,fx,fz)=>this.chunks.blocksMovement(x,z,y,fx,fz));
     if (this.survival.dead) {
       this.handlePlayerDeath();
     }
@@ -605,7 +615,7 @@ export class Game {
       this.perfElapsed=0;
       const s=this.perf.snapshot(),info=this.renderer.info;
       const heap=(performance as Performance&{memory?:{usedJSHeapSize:number}}).memory?.usedJSHeapSize;
-      this.hud.updatePerformance([idle?'Pausado':s.fps+' FPS · p95 '+s.p95ms.toFixed(1)+' ms', 'Draw calls '+info.render.calls+' · '+info.render.triangles.toLocaleString('pt-BR')+' tris', 'Geometrias '+info.memory.geometries+' · texturas '+info.memory.textures, 'Chunks '+this.chunks.loadedCount+' · fila '+this.chunks.pendingCount+' · ilhas visíveis '+this.chunks.visibleIslandCount, 'Worker '+(this.chunks.workerActive?'ativo':'local')+' · DPR '+this.resolution.scale.toFixed(2), 'Origem '+this.renderOrigin.x+','+this.renderOrigin.z+' · '+this.renderOrigin.shifts+' ajustes', 'Quadros >33 ms: '+s.longFrames+(heap!==undefined?' · Heap JS '+Math.round(heap/1048576)+' MB':'')]);
+      this.hud.updatePerformance([idle?'Pausado':s.fps+' FPS · p95 '+s.p95ms.toFixed(1)+' ms', 'Draw calls '+info.render.calls+' · '+info.render.triangles.toLocaleString('pt-BR')+' tris', 'Geometrias '+info.memory.geometries+' · texturas '+info.memory.textures, 'Chunks '+this.chunks.loadedCount+' · fila '+this.chunks.pendingCount+' · ilhas visíveis '+this.chunks.visibleIslandCount, 'Worker '+(this.chunks.workerActive?'ativo':'local')+' · DPR '+this.resolution.scale.toFixed(2), 'Origem '+this.renderOrigin.x+','+this.renderOrigin.z+' · '+this.renderOrigin.shifts+' ajustes', 'Fauna ativa '+this.fauna.activeCount, 'Quadros >33 ms: '+s.longFrames+(heap!==undefined?' · Heap JS '+Math.round(heap/1048576)+' MB':'')]);
     }
 
     if (this.started && this.hudElapsed >= (this.buildRecipe ? .08 : .10)) {
@@ -723,6 +733,11 @@ export class Game {
 
     // Lança contra Mandíbula Branca
     if (itemId === 'lanca') {
+      const animal=this.fauna.strike(this.player.position);
+      if(animal){
+        if(animal.hit){this.inventory.damageSlot(this.inventory.selectedHotbar,1);this.sfx.playBuild();this.hud.pushToast(animal.killed?animal.name+' abatido. Recolha a bolsa após 5 segundos.':animal.name+' · '+animal.hp+' HP','info');}
+        return;
+      }
       const dist = this.player.position.distanceTo(this.shark.getPosition());
       if (dist <= 5.5) {
         this.shark.takeDamage(25);
@@ -815,6 +830,11 @@ export class Game {
       }
     }
 
+    const loot=this.fauna.nearestLoot(this.player.position);
+    if(loot){
+      if(this.inventory.clone().addItem('carne_crua',loot.count).overflow){this.hud.pushToast('Mochila cheia. A bolsa permanece na ilha.','warn');return;}
+      if(this.fauna.claim(loot.id))this.collectLoot([{itemId:'carne_crua',count:loot.count}],'hunting');return;
+    }
     if(this.harvestIslandResource())return;
 
     // 2. Verificar módulos da jangada ao alcance
@@ -838,6 +858,10 @@ export class Game {
           return;
         }
         case 'churrasqueira': {
+          if(this.inventory.getItemCount('carne_crua')>=1){
+            const result=this.inventory.craft(RECIPES.find(r=>r.id==='rec_carne_assada')!);
+            this.hud.pushToast(result.ok?'Carne assada pronta!':result.reason??'Não foi possível cozinhar.',result.ok?'success':'warn');return;
+          }
           if (this.inventory.getItemCount('peixe_cru') >= 1) {
             this.inventory.consumeItems([{ itemId: 'peixe_cru', count: 1 }]);
             this.inventory.addItem('peixe_assado', 1);
@@ -1232,6 +1256,7 @@ export class Game {
       quests: this.quests.serialize(),
       depletedIslandResources:this.chunks.serializeResources(),
       discoveredChunks:this.discovery.serialize(),
+      animalDeltas:this.fauna.serialize(),
       worldFlags: {
         wreckLooted: this.wreckLooted,
         buoyInspected: this.buoyInspected,
@@ -1305,7 +1330,7 @@ export class Game {
       promptText: prompt,
       buildModeLabel: this.buildRecipe ? this.buildRecipe.name : null,
       saveStatus: this.saveStatus,
-      sharkWarning,
+      sharkWarning:sharkWarning??this.fauna.warning(this.player.position),
     });
   }
 
@@ -1328,6 +1353,7 @@ export class Game {
       }
     }
 
+    if(this.fauna.nearestLoot(this.player.position))return '[E/Ação] Recolher carne da caça';
     const resource=this.chunks.nearestResource(this.player.position.x,this.player.position.z,this.player.position.y);
     if(resource)return '[E] '+resource.label;
     const mod = this.findNearestModule(2.6);
