@@ -105,6 +105,16 @@ export class ChunkManager {
       v.terrain.receiveShadow=detailed;
     }
   }
+  /** Broadphase conservadora: ignora testes individuais quando a jangada está em mar aberto. */
+  hasLandNear(x:number,z:number,radius:number):boolean{
+    const min=chunkAt(x-radius,z-radius),max=chunkAt(x+radius,z+radius);
+    for(let cz=min.cz;cz<=max.cz;cz++)for(let cx=min.cx;cx<=max.cx;cx++){
+      const loaded=this.chunks.get(chunkKey(cx,cz));
+      const spec=loaded?loaded.island?.spec??null:islandForChunk(this.seed,cx,cz);
+      if(spec&&(spec.x-x)**2+(spec.z-z)**2<=(spec.radius+radius)**2)return true;
+    }
+    return false;
+  }
   /** Colisão usa layout determinístico, não depende da fila gráfica. */
   groundHeight(x:number,z:number):number|null{
     const {cx,cz}=chunkAt(x,z);

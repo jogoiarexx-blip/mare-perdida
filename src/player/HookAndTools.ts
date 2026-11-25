@@ -120,12 +120,11 @@ export class HookController {
     }
 
     this.hookMesh.position.copy(this.state.position);
-    this.ropePositions[0] = playerHandPos.x;
-    this.ropePositions[1] = playerHandPos.y;
-    this.ropePositions[2] = playerHandPos.z;
-    this.ropePositions[3] = this.state.position.x;
-    this.ropePositions[4] = this.state.position.y;
-    this.ropePositions[5] = this.state.position.z;
+    this.ropeLine.position.copy(playerHandPos);
+    this.ropePositions[0]=0;this.ropePositions[1]=0;this.ropePositions[2]=0;
+    this.ropePositions[3] = this.state.position.x-playerHandPos.x;
+    this.ropePositions[4] = this.state.position.y-playerHandPos.y;
+    this.ropePositions[5] = this.state.position.z-playerHandPos.z;
     (this.ropeLine.geometry.attributes.position as THREE.BufferAttribute).needsUpdate = true;
   }
 

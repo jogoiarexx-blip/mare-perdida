@@ -4,6 +4,7 @@ import { WorldClock } from './core/Clock';
 import { GameLoop } from './core/GameLoop';
 import { AdaptiveResolution } from './core/RenderBudget';
 import { PerformanceMonitor } from './core/PerformanceMonitor';
+import { RenderOrigin } from './world/RenderOrigin';
 import { ITEMS } from './data/items';
 import type { RecipeDef, StructureKind } from './data/recipes';
 import { Inventory } from './player/Inventory';
@@ -53,6 +54,7 @@ export class Game {
   private chunks!: ChunkManager;
   private readonly discovery=new Discovery();
   private readonly perf=new PerformanceMonitor();
+  private readonly renderOrigin=new RenderOrigin();
   private perfElapsed=1;
   private helmKey:string|null=null;
   private raftGrid = new RaftGrid(256);
@@ -373,6 +375,7 @@ export class Game {
 
   private startNewWorld(difficulty: Difficulty): void {
     this.worldId = `world_${Date.now()}`;
+    this.renderOrigin.reset();this.renderer.shadowMap.needsUpdate=true;
     this.seed = Math.floor(Math.random() * 900000) + 100000;
     this.chunks.reset(this.seed);
     this.discovery.reset();this.discovery.visit(0,0);this.helmKey=null;
@@ -406,6 +409,7 @@ export class Game {
   }
 
   private restoreFromSave(data: WorldSaveData): void {
+    this.renderOrigin.reset();this.renderer.shadowMap.needsUpdate=true;
     this.worldId = data.worldId;
     this.seed = data.seed;
     this.epoch = data.epoch;
@@ -595,12 +599,13 @@ export class Game {
     if (this.started && !this.modals.isOpen()) this.updateBuildGhost();
     else this.raftRenderer.hideGhost();
     this.ambient.update(this.camera.position.x,this.camera.position.z,this.camera.position.y,this.clock.elapsedSeconds,this.weather.stormFactor,this.options.quality==='baixo');
-    this.renderer.render(this.scene, this.camera);
+    if(this.renderOrigin.update(this.camera.position.x,this.camera.position.z))this.renderer.shadowMap.needsUpdate=true;
+    this.renderOrigin.render(this.scene,this.camera,()=>this.renderer.render(this.scene,this.camera));
     if(this.hud.isPerformanceVisible()&&this.perfElapsed>=.5){
       this.perfElapsed=0;
       const s=this.perf.snapshot(),info=this.renderer.info;
       const heap=(performance as Performance&{memory?:{usedJSHeapSize:number}}).memory?.usedJSHeapSize;
-      this.hud.updatePerformance([idle?'Pausado':s.fps+' FPS · p95 '+s.p95ms.toFixed(1)+' ms', 'Draw calls '+info.render.calls+' · '+info.render.triangles.toLocaleString('pt-BR')+' tris', 'Geometrias '+info.memory.geometries+' · texturas '+info.memory.textures, 'Chunks '+this.chunks.loadedCount+' · fila '+this.chunks.pendingCount+' · ilhas visíveis '+this.chunks.visibleIslandCount, 'Worker '+(this.chunks.workerActive?'ativo':'local')+' · DPR '+this.resolution.scale.toFixed(2), 'Quadros >33 ms: '+s.longFrames+(heap!==undefined?' · Heap JS '+Math.round(heap/1048576)+' MB':'')]);
+      this.hud.updatePerformance([idle?'Pausado':s.fps+' FPS · p95 '+s.p95ms.toFixed(1)+' ms', 'Draw calls '+info.render.calls+' · '+info.render.triangles.toLocaleString('pt-BR')+' tris', 'Geometrias '+info.memory.geometries+' · texturas '+info.memory.textures, 'Chunks '+this.chunks.loadedCount+' · fila '+this.chunks.pendingCount+' · ilhas visíveis '+this.chunks.visibleIslandCount, 'Worker '+(this.chunks.workerActive?'ativo':'local')+' · DPR '+this.resolution.scale.toFixed(2), 'Origem '+this.renderOrigin.x+','+this.renderOrigin.z+' · '+this.renderOrigin.shifts+' ajustes', 'Quadros >33 ms: '+s.longFrames+(heap!==undefined?' · Heap JS '+Math.round(heap/1048576)+' MB':'')]);
     }
 
     if (this.started && this.hudElapsed >= (this.buildRecipe ? .08 : .10)) {
@@ -612,6 +617,8 @@ export class Game {
   /** Testa os centros das fundações, permitindo sair de uma posição antiga encalhada. */
   private raftCanMove(x:number,z:number,heading:number,oldX:number,oldZ:number,oldHeading:number):boolean{
     if(x===oldX&&z===oldZ&&heading===oldHeading)return true;
+    let radiusSq=0;for(const f of this.raftGrid.foundations.values())radiusSq=Math.max(radiusSq,f.gx*f.gx+f.gz*f.gz);
+    if(!this.chunks.hasLandNear(x,z,Math.sqrt(radiusSq)+1))return true;
     const c=Math.cos(heading),s=Math.sin(heading),oc=Math.cos(oldHeading),os=Math.sin(oldHeading);
     for(const f of this.raftGrid.foundations.values()){
       const wx=x+f.gx*c+f.gz*s,wz=z-f.gx*s+f.gz*c;

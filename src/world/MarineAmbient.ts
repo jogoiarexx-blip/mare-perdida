@@ -36,6 +36,8 @@ export class MarineAmbient {
   update(x:number,z:number,y:number,t:number,storm:number,low:boolean) {
     const budget=ambientBudget(low);
     // A água é opaca: cardumes são úteis durante o mergulho, sem desenhar peixes ocultos acima dela.
+    this.fish.position.set(x,0,z);
+    this.rain.position.set(x,y,z);
     this.fish.visible=y < getWaveHeight(x,z,t,storm)+.08;
     if(this.fish.visible){
       this.fish.count=Math.min(budget.fish,this.maxFish);
@@ -43,7 +45,7 @@ export class MarineAmbient {
         const school=Math.floor(i/6), a=t*.36+school*2.1+i*.32;
         const r=3.5+school*2+i%3*.38;
         const fx=x+Math.cos(a)*r, fz=z+Math.sin(a)*r;
-        this.dummy.position.set(fx,getWaveHeight(fx,fz,t,storm)-.65-school*.25-Math.sin(i)*.16,fz);
+        this.dummy.position.set(fx-x,getWaveHeight(fx,fz,t,storm)-.65-school*.25-Math.sin(i)*.16,fz-z);
         this.dummy.rotation.set(0,-a-Math.PI/2,0);
         this.dummy.scale.setScalar(.8+(i%4)*.12);
         this.dummy.updateMatrix(); this.fish.setMatrixAt(i,this.dummy.matrix);
@@ -56,10 +58,10 @@ export class MarineAmbient {
       this.rain.geometry.setDrawRange(0,count*2);
       for(let i=0;i<count;i++){
         const s=i*3,p=i*6;
-        const px=x+(this.rainSeed[s]-.95)*22;
-        const pz=z+(this.rainSeed[s+1]-.95)*22;
+        const px=(this.rainSeed[s]-.95)*22;
+        const pz=(this.rainSeed[s+1]-.95)*22;
         const height=((this.rainSeed[s+2]*11-t*13)%11+11)%11;
-        const py=y-2+height;
+        const py=-2+height;
         this.rainPositions[p]=px; this.rainPositions[p+1]=py; this.rainPositions[p+2]=pz;
         this.rainPositions[p+3]=px+.13; this.rainPositions[p+4]=py+.68; this.rainPositions[p+5]=pz+.05;
       }

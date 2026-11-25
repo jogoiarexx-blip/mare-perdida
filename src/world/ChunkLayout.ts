@@ -33,13 +33,15 @@ export function islandRim(spec:IslandSpec,angle:number,r:number):number{
   return spec.radius*r*(1+(coastFactor(spec,angle)-1)*Math.max(0,(r-.65)/.35));
 }
 export const ISLAND_RINGS=[0,.30,.55,.72,.86,1] as const;
+const HEIGHT_PROFILES:Record<IslandBiome,readonly number[]>={tropical:[1,.81,.47,.22],rochoso:[1,.91,.73,.30],verde:[1,.86,.58,.24],arenoso:[1,.69,.36,.15]};
 export function ringHeight(spec:IslandSpec,index:number):number{
-  const profiles:Record<IslandBiome,number[]>={tropical:[1,.81,.47,.22],rochoso:[1,.91,.73,.30],verde:[1,.86,.58,.24],arenoso:[1,.69,.36,.15]};
-  return index<4?spec.height*profiles[islandBiome(spec)][index]:index===4?.18:-1.4;
+  return index<4?spec.height*HEIGHT_PROFILES[islandBiome(spec)][index]:index===4?.18:-1.4;
 }
 /** Perfil físico idêntico às alturas dos anéis do terreno; null fora da ilha. */
 export function islandHeight(spec:IslandSpec,x:number,z:number):number|null {
-  const dx=x-spec.x,dz=z-spec.z,angle=Math.atan2(dz,dx),r=Math.hypot(dx,dz);
+  const dx=x-spec.x,dz=z-spec.z;
+  if(dx*dx+dz*dz>spec.radius*spec.radius)return null;
+  const angle=Math.atan2(dz,dx),r=Math.hypot(dx,dz);
   if(r>islandRim(spec,angle,1))return null;
   for(let i=1;i<ISLAND_RINGS.length;i++)if(r<=islandRim(spec,angle,ISLAND_RINGS[i])){
     const inner=islandRim(spec,angle,ISLAND_RINGS[i-1]),outer=islandRim(spec,angle,ISLAND_RINGS[i]);
