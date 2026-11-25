@@ -157,7 +157,7 @@ export class Inventory {
   }
 
   swapSlots(a: number, b: number): void {
-    if (a < 0 || b < 0 || a >= this.capacity || b >= this.capacity || a === b) return;
+    if (!Number.isInteger(a) || !Number.isInteger(b) || a < 0 || b < 0 || a >= this.capacity || b >= this.capacity || a === b) return;
     const tmp = this.slots[a];
     this.slots[a] = this.slots[b];
     this.slots[b] = tmp;
