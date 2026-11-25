@@ -6,7 +6,7 @@ Protótipo jogável 3D em navegador (Three.js + TypeScript + Vite) baseado no `G
 
 ## Publicação
 
-Em **Settings → Pages**, selecione **GitHub Actions** como fonte. O workflow executa os testes, compila o jogo e publica `dist/` a cada envio para `main`. Também é possível executá-lo manualmente na aba **Actions**.
+O workflow executa os testes, compila o jogo e publica `dist/` a cada envio para `main`. Com **GitHub Actions** como fonte em **Settings → Pages**, há um único processo de publicação. Se o Pages publicar pela raiz de `main`, `index.html` encaminha para o build versionado em `dist/`. Nesse modo, inclua o `dist/` atualizado ao enviar alterações do jogo.
 
 ## Como executar
 ```bash

@@ -5,9 +5,9 @@
   "type": "module",
   "description": "Maré Perdida: O Último Horizonte — Survival 3D em navegador (Vertical Slice)",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc --noEmit && vite build",
-    "preview": "vite preview",
+    "dev": "vite web --config vite.config.ts",
+    "build": "tsc --noEmit && vite build web --config vite.config.ts --outDir ../dist --emptyOutDir",
+    "preview": "vite preview web --config vite.config.ts --outDir ../dist",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
