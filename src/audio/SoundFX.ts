@@ -5,6 +5,10 @@ export class SoundFX {
   private ctx: AudioContext | null = null;
   private masterGain: GainNode | null = null;
   volume = 0.55;
+  private ambience:AudioBufferSourceNode|null=null;
+  private ambienceGain:GainNode|null=null;
+  private ambienceFilter:BiquadFilterNode|null=null;
+  private ambienceState='';
 
   private ensureContext(): AudioContext | null {
     if (typeof window === 'undefined' || this.volume <= 0.01) return null;
@@ -17,7 +21,7 @@ export class SoundFX {
       this.masterGain.connect(this.ctx.destination);
     }
     if (this.ctx.state === 'suspended') {
-      void this.ctx.resume();
+      void this.ctx.resume().catch(()=>{});
     }
     if (this.masterGain) {
       this.masterGain.gain.value = this.volume;
@@ -28,6 +32,34 @@ export class SoundFX {
   setVolume(v: number): void {
     this.volume = Math.max(0, Math.min(1, v));
     if (this.masterGain) this.masterGain.gain.value = this.volume;
+  }
+
+  /** Uma fonte de ruído filtrado em loop, sem downloads e sem fontes por quadro. */
+  startAmbience():void {
+    if(this.ambience)return;
+    try {
+      const ctx=this.ensureContext();if(!ctx||!this.masterGain)return;
+      const buffer=ctx.createBuffer(1,ctx.sampleRate*2,ctx.sampleRate);
+      const samples=buffer.getChannelData(0);let prev=0,state=2089;
+      for(let i=0;i<samples.length;i++){
+        state=(Math.imul(state,1664525)+1013904223)>>>0;
+        prev=prev*.88+(state/4294967296*2-1)*.12;
+        samples[i]=prev*.7;
+      }
+      const source=ctx.createBufferSource();source.buffer=buffer;source.loop=true;
+      const filter=ctx.createBiquadFilter();filter.type='lowpass';filter.frequency.value=700;
+      const gain=ctx.createGain();gain.gain.value=0;
+      source.connect(filter);filter.connect(gain);gain.connect(this.masterGain);
+      source.start();this.ambience=source;this.ambienceGain=gain;this.ambienceFilter=filter;
+    } catch { /* áudio indisponível não impede a partida */ }
+  }
+  updateAmbience(storm:number,underwater:boolean,idle:boolean):void{
+    if(!this.ctx||!this.ambienceGain||!this.ambienceFilter)return;
+    const state=idle?'idle':underwater?'dive':storm>.16?'rain':'sea';
+    if(state===this.ambienceState)return;
+    this.ambienceState=state;const now=this.ctx.currentTime;
+    this.ambienceGain.gain.setTargetAtTime(state==='idle'?0:state==='rain'?.19:state==='dive'?.09:.13,now,.25);
+    this.ambienceFilter.frequency.setTargetAtTime(state==='dive'?150:state==='rain'?1500:650,now,.3);
   }
 
   playTone(freq: number, duration = 0.12, type: OscillatorType = 'sine', gainLevel = 0.16): void {
