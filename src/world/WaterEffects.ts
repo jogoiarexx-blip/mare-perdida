@@ -47,6 +47,7 @@ export class WaterEffects {
   }
   tick(dt:number,time:number,storm:number,low:boolean,px:number,py:number,pz:number,wet:boolean,underwater:boolean,swimSpeed:number,rx:number,rz:number,vx:number,vz:number,raftRadius=1){
     const cap=waterFxBudget(low);
+    this.root.position.set(px,0,pz);
     if(this.initialized&&wet&&!this.wasWet)this.burst(px,pz,time,storm,low);
     this.wasWet=wet;this.initialized=true;
     const speed=Math.hypot(vx,vz);
@@ -70,7 +71,7 @@ export class WaterEffects {
     for(let i=0;i<this.foamPool.length;i++){const p=this.foamPool[i];if(i>=cap.foam){p.life=0;continue;}if(p.life<=0)continue;
       p.age+=dt;if(p.age>=p.life){p.life=0;continue;}
       p.x+=p.vx*dt;p.z+=p.vz*dt;
-      this.dummy.position.set(p.x,getWaveHeight(p.x,p.z,time,storm)+.035,p.z);
+      this.dummy.position.set(p.x-this.root.position.x,getWaveHeight(p.x,p.z,time,storm)+.035,p.z-this.root.position.z);
       this.dummy.rotation.set(-Math.PI/2,0,0);
       const s=(.15+p.age*.45)*Math.min(1,(p.life-p.age)*3);
       this.dummy.scale.set(s,s*.65,1);this.dummy.updateMatrix();this.foam.setMatrixAt(n++,this.dummy.matrix);
@@ -85,7 +86,7 @@ export class WaterEffects {
       p.age+=dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.z+=p.vz*dt;if(!bubble)p.vy-=7*dt;
       const surface=getWaveHeight(p.x,p.z,time,storm);
       if(p.age>=p.life||(bubble?p.y>=surface:p.y<surface-.08)){p.life=0;continue;}
-      data[n++]=p.x;data[n++]=p.y;data[n++]=p.z;
+      data[n++]=p.x-this.root.position.x;data[n++]=p.y;data[n++]=p.z-this.root.position.z;
     }
     mesh.geometry.setDrawRange(0,n/3);mesh.geometry.getAttribute('position').needsUpdate=true;
   }
