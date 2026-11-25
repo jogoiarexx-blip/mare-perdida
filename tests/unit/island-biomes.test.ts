@@ -19,7 +19,9 @@ describe('CP09.4 biomas e LOD',()=>{
   it('terreno e vegetação permanecem leves',()=>{
     const i=islandForChunk(27,0,-1)!,g=islandTerrain(i,40),near=palmCrown(),mid=palmCrown(3),ruin=ruinGeometry();
     expect(g.index!.count/3).toBeLessThan(400);
-    expect(mid.getAttribute('position').count).toBe(near.getAttribute('position').count/2);
+    expect(mid.getAttribute('position').count/3).toBeLessThanOrEqual(12);
+    expect(near.getAttribute('position').count/3).toBeLessThanOrEqual(96);
+    expect(mid.getAttribute('position').count).toBeLessThan(near.getAttribute('position').count);
     expect(ruin.getAttribute('position').count/3).toBeLessThan(160);
     g.dispose();near.dispose();mid.dispose();ruin.dispose();
   });

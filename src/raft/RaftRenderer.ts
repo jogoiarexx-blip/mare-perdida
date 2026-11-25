@@ -4,6 +4,7 @@ import { collectionNet, plantGeometry, grillGeometry, radioFace, roofGeometry } 
 import { cellKey, RaftGrid, type PlacedModule } from './Grid';
 import { getWaveHeight, getWaveNormal } from '../world/Ocean';
 import type { StructureKind } from '../data/recipes';
+import {isArchitecture} from './Architecture';
 
 /**
  * Renderização 3D da jangada, módulos instalados e ghost verde/vermelho de construção.
@@ -26,6 +27,8 @@ export class RaftRenderer {
 
   private readonly deckGeo = plankDeck();
   private readonly trimGeo = reinforcedDeckFrame();
+  private readonly ghostWallGeo=new THREE.BoxGeometry(.98,2.4,.13).translate(0,1.2,.46);
+  private readonly ghostFloorGeo=new THREE.BoxGeometry(.98,.16,.98).translate(0,2.33,0);
   private readonly ghostBoxGeo = new THREE.BoxGeometry(0.94, 0.36, 0.94);
   private readonly plankMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.83 });
   private readonly reinforcedMat = new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, metalness: 0.35, roughness: 0.48 });
@@ -206,6 +209,50 @@ export class RaftRenderer {
         const wheel=new THREE.Mesh(combine(parts),metalMat);wheel.position.set(0,.94,.11);
         g.add(base,wheel);break;
       }
+      case 'parede':case 'janela':case 'porta':case 'corrimao':{
+        const parts:THREE.BufferGeometry[]=[];
+        const box=(w:number,h:number,d:number,x:number,y:number,z=.46)=>new THREE.BoxGeometry(w,h,d).translate(x,y,z);
+        if(mod.kind==='parede'){
+          for(let i=0;i<8;i++)parts.push(box(.99,.29,.11,0,.15+i*.3));
+        }else if(mod.kind==='janela'){
+          parts.push(box(.99,.85,.11,0,.425),box(.99,.60,.11,0,2.10));
+          for(const x of [-.37,.37])parts.push(box(.24,.95,.11,x,1.32));
+          parts.push(box(.035,.95,.14,0,1.32),box(.5,.045,.14,0,1.32));
+        }else if(mod.kind==='corrimao'){
+          for(const x of [-.43,.43])parts.push(box(.09,1.05,.10,x,.525));
+          for(const y of [.48,1.0])parts.push(box(.98,.085,.11,0,y));
+        }else{
+          for(const x of [-.46,.46])parts.push(box(.08,2.35,.13,x,1.175));
+          parts.push(box(.99,.22,.13,0,2.29));
+        }
+        g.add(new THREE.Mesh(combine(parts),woodMat));
+        if(mod.kind==='porta'){
+          const hinge=new THREE.Group();hinge.position.set(-.42,0,.46);
+          const panels:THREE.BufferGeometry[]=[];
+          for(let i=0;i<4;i++)panels.push(new THREE.BoxGeometry(.20,2.14,.09).translate(.105+i*.205,1.07,0));
+          const leaf=new THREE.Mesh(combine(panels),woodMat);
+          const knob=new THREE.Mesh(new THREE.SphereGeometry(.055,6,4),metalMat);knob.position.set(.73,1.04,-.08);hinge.add(leaf,knob);g.add(hinge);
+        }
+        break;
+      }
+      case 'piso_superior':{
+        const parts:THREE.BufferGeometry[]=[];
+        for(const x of [-.43,.43])for(const z of [-.43,.43])parts.push(new THREE.BoxGeometry(.085,2.25,.085).translate(x,1.125,z));
+        for(let i=0;i<5;i++)parts.push(new THREE.BoxGeometry(.19,.16,.98).translate(-.4+i*.2,2.33,0));
+        g.add(new THREE.Mesh(combine(parts),woodMat));break;
+      }
+      case 'escada_interna':{
+        const parts:THREE.BufferGeometry[]=[];
+        for(const x of [-.33,.33])parts.push(new THREE.BoxGeometry(.09,2.4,.10).translate(x,1.2,0));
+        for(let i=0;i<8;i++)parts.push(new THREE.BoxGeometry(.70,.085,.16).translate(0,.18+i*.29,0));
+        g.add(new THREE.Mesh(combine(parts),woodMat));break;
+      }
+      case 'telhado':{
+        const panels:THREE.BufferGeometry[]=[];
+        for(const x of [-.46,.46])panels.push(new THREE.BoxGeometry(.67,.1,1.05).rotateZ(x<0?.36:-.36).translate(x*.57,2.47,0));
+        for(const x of [-.43,.43])for(const z of [-.43,.43])panels.push(new THREE.BoxGeometry(.075,2.35,.075).translate(x,1.175,z));
+        g.add(new THREE.Mesh(combine(panels),woodMat));break;
+      }
       case 'motor': {
         const base=new THREE.Mesh(combine([new THREE.BoxGeometry(.7,.16,.75),new THREE.BoxGeometry(.54,.5,.48).translate(0,.28,0),new THREE.CylinderGeometry(.13,.13,.4,8).rotateZ(Math.PI/2).translate(.28,.29,0)]),metalMat);
         const prop=new THREE.Mesh(combine([new THREE.BoxGeometry(.45,.08,.12),new THREE.BoxGeometry(.08,.45,.12)]),metalMat);prop.position.set(0,-.22,.42);g.add(base,prop);break;
@@ -306,6 +353,7 @@ export class RaftRenderer {
   }
 
   private updateModuleVisual(grp: THREE.Group, mod: PlacedModule): void {
+    if(mod.kind==='porta'&&grp.children[1])grp.children[1].rotation.y=mod.active?-Math.PI/2:0;
     if(mod.kind==='farol_nav'&&grp.children[1])grp.children[1].visible=mod.active;
     if(mod.kind==='ancora'&&grp.children[1])grp.children[1].position.y=mod.active?-.38:.56;
     if (mod.kind === 'vela' && grp.children[1]) {
@@ -322,8 +370,8 @@ export class RaftRenderer {
     this.ghostMesh.visible = true;
     this.ghostMesh.material = valid ? this.ghostValidMat : this.ghostInvalidMat;
     const isFoundation = kind === 'fundacao' || kind === 'borda_reforcada';
-    this.ghostMesh.geometry = kind === 'borda_reforcada' ? this.trimGeo : this.ghostBoxGeo;
-    this.ghostMesh.position.set(gx * RaftGrid.CELL_SIZE, kind === 'borda_reforcada' ? 0.025 : isFoundation ? 0.1 : 0.42, gz * RaftGrid.CELL_SIZE);
+    this.ghostMesh.geometry = kind === 'borda_reforcada' ? this.trimGeo : ['parede','janela','porta','corrimao'].includes(kind)?this.ghostWallGeo:['piso_superior','telhado'].includes(kind)?this.ghostFloorGeo:this.ghostBoxGeo;
+    this.ghostMesh.position.set(gx * RaftGrid.CELL_SIZE, kind === 'borda_reforcada' ? 0.025 : isFoundation ? 0.1 : isArchitecture(kind)?.2:0.42, gz * RaftGrid.CELL_SIZE);
     this.ghostMesh.rotation.y = (rotation * Math.PI) / 2;
   }
 
@@ -373,7 +421,7 @@ export class RaftRenderer {
       if (obj instanceof THREE.Mesh) { geometries.add(obj.geometry); if(Array.isArray(obj.material)) obj.material.forEach(m=>materials.add(m)); else materials.add(obj.material); }
     });
     geometries.forEach(g=>g.dispose()); materials.forEach(m=>m.dispose()); this.moduleTemplates.clear();
-    this.ghostBoxGeo.dispose();
+    this.ghostBoxGeo.dispose();this.ghostWallGeo.dispose();this.ghostFloorGeo.dispose();
     this.deckGeo.dispose();
     this.trimGeo.dispose();
     this.plankMat.dispose();

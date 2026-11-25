@@ -107,3 +107,7 @@
 
 ### CP10.4 — navegação avançada
 - Motor com combustível artesanal (60 s/carga, capacidade 180 s), pilotagem K/botão, consumo proporcional à aceleração/curva, âncora bloqueia propulsão, estado de combustível no módulo salvo. Escada lateral aumenta alcance de embarque perto da peça; bandeira visual; farol direcional sem sombras extras; binóculo com zoom alternável; radar mostra ilhas próximas e contornos no minimapa sem gravar descoberta. Novos modelos procedurais e receitas, três testes. Radar não detecta ainda destroços, bandeira sem marcador dedicado, combustível e equipamentos sujeitos a balanceamento; testes visuais e FPS pendentes.
+
+
+### CP10.5a — cabines e piso elevado
+- Sete peças construíveis: parede, porta interativa, janela, corrimão, piso superior com pilares, escada interna (E/Ação sobe/desce para plataforma adjacente) e telhado. Colisão horizontal de painéis orientados, piso superior a 2,61 m da origem da jangada, proteção básica contra atravessar plataforma ao pular, desmontagem da peça sem remover fundação. Modelos combinados e templates compartilhados. Mantido limite de um módulo por fundação, sem equipamentos no segundo andar; escada por interação, não subida contínua; fundação metálica e instancing de cabines ficam para CP10.5b. Corrigido teste de orçamento de copa após arte V5 (12 tris distante, 96 perto); três novos testes de arquitetura. Validação real de colisões/câmera e FPS pendente.

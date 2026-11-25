@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { survivorClothing, survivorHead, survivorArm, survivorLeg, survivorVest } from '../render/DetailGeometry';
 import { cellKey, RaftGrid } from '../raft/Grid';
+import {upperFloor,architectureBlocks} from '../raft/Architecture';
 import type { RaftRenderer } from '../raft/RaftRenderer';
 import { getWaveHeight } from '../world/Ocean';
 
@@ -29,6 +30,7 @@ export class PlayerController {
 
   readonly avatarGroup = new THREE.Group();
   private readonly wishVector=new THREE.Vector3();
+  private readonly localA=new THREE.Vector2();private readonly localB=new THREE.Vector2();
   private readonly eyeHeight = 1.58;
   private readonly limbs: THREE.Group[] = [];
   private gait = 0;
@@ -129,12 +131,14 @@ export class PlayerController {
       }
     }
 
+    const previousY=this.position.y;
+    const blocked=(x:number,z:number,fx:number,fz:number)=>{const a=raft.worldToLocalXZ(x,z,this.localA),b=raft.worldToLocalXZ(fx,fz,this.localB);return architectureBlocks(grid,a.x,a.y,this.position.y-raft.root.position.y,b.x,b.y)||blocksMovement(x,z,this.position.y,fx,fz);};
     // Movimento por eixo permite deslizar ao redor de árvores e rochas.
     const nextX=this.position.x+this.velocity.x*dt;
-    if(!blocksMovement(nextX,this.position.z,this.position.y,this.position.x,this.position.z))this.position.x=nextX;
+    if(!blocked(nextX,this.position.z,this.position.x,this.position.z))this.position.x=nextX;
     else this.velocity.x=0;
     const nextZ=this.position.z+this.velocity.z*dt;
-    if(!blocksMovement(this.position.x,nextZ,this.position.y,this.position.x,this.position.z))this.position.z=nextZ;
+    if(!blocked(this.position.x,nextZ,this.position.x,this.position.z))this.position.z=nextZ;
     else this.velocity.z=0;
     this.position.y+=this.velocity.y*dt;
 
@@ -145,12 +149,17 @@ export class PlayerController {
     const waveAfter=getWaveHeight(this.position.x,this.position.z,timeSec,stormFactor);
     const landSurface=landAfter!==null&&landAfter>waveAfter+.03?landAfter:null;
     const canLandOnDeck=onFoundation&&this.position.y>=deckTopY-.35;
-    const floor=canLandOnDeck?Math.max(deckTopY,landSurface??-Infinity):landSurface;
+    const upper=upperFloor(grid,postCell.gx,postCell.gz);
+    const upperY=upper===null?null:raft.root.position.y+upper;
+    const onUpper=upperY!==null&&previousY>=upperY-.25;
+    const deckSurface=onUpper?upperY!:deckTopY;
+    const floor=canLandOnDeck?Math.max(deckSurface,landSurface??-Infinity):landSurface;
+    if(upperY!==null&&!onUpper&&this.velocity.y>0&&previousY+this.eyeHeight<=upperY-.16&&this.position.y+this.eyeHeight>upperY-.16){this.position.y=upperY-.16-this.eyeHeight;this.velocity.y=0;}
     if (floor!==null && this.position.y <= floor + .18 && this.velocity.y <= .8) {
       this.position.y = floor;
       this.velocity.y = 0;
       this.grounded = true;
-      this.onRaft=onFoundation&&deckTopY>=(landSurface??-Infinity);
+      this.onRaft=onFoundation&&deckSurface>=(landSurface??-Infinity);
       this.inWater=false;this.underwater=false;
     } else {
       this.grounded = false;this.onRaft=false;

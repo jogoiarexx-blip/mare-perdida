@@ -18,6 +18,13 @@ const GLYPHS: Record<string, readonly [string,string]> = {
   "farol_nav":["#ffe19b","<path d=\"M3 22h12M9 22V10M4 10V3h10v7ZM17 4l5-2m-5 5h5m-5 3 5 2\"/>"],
   "radar":["#83c9a8","<circle cx=\"12\" cy=\"12\" r=\"10\"/><circle cx=\"12\" cy=\"12\" r=\"5\"/><path d=\"M12 12 19 5M12 2v20M2 12h20\"/>"],
   "binoculo":["#abc5d6","<path d=\"M3 4h6l2 6v9H1v-9Zm12 0h6l2 6v9H13v-9ZM11 12h2\"/>"],
+  "parede":["#c99b63","<rect x=\"2\" y=\"2\" width=\"20\" height=\"20\"/><path d=\"M2 7h20M2 12h20M2 17h20\"/>"],
+  "porta":["#bd935f","<rect x=\"5\" y=\"2\" width=\"14\" height=\"20\"/><path d=\"M8 5h8v14H8Zm6 7h1\"/>"],
+  "janela":["#a8cbd8","<rect x=\"2\" y=\"2\" width=\"20\" height=\"20\"/><rect x=\"6\" y=\"6\" width=\"12\" height=\"12\"/><path d=\"M12 6v12M6 12h12\"/>"],
+  "corrimao":["#c99b63","<path d=\"M3 22V5m18 17V5M3 6h18M3 13h18M3 20h18\"/>"],
+  "piso_superior":["#c99b63","<path d=\"M2 5 12 1l10 4-10 4Zm0 0v4l10 4 10-4V5M4 10v12m16-12v12\"/>"],
+  "escada_interna":["#c99b63","<path d=\"M5 2v20M19 2v20M5 5h14M5 10h14M5 15h14M5 20h14\"/>"],
+  "telhado":["#c99b63","<path d=\"m2 12 10-10 10 10M5 10v12m14-12v12M2 12h20\"/>"],
   "madeira": [
     "#ce935c",
     "<path d=\"M3 8 16 3l5 5v10L8 22l-5-5Z\"/><path d=\"m3 8 5 5 13-5M8 13v9m3-10 7-3m-7 7 7-3\"/>"

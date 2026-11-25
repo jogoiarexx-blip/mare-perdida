@@ -13,6 +13,7 @@ import { SurvivalSystem, type Difficulty } from './player/Survival';
 import { PlayerController } from './player/Controller';
 import { HookController } from './player/HookAndTools';
 import { cellKey, RaftGrid } from './raft/Grid';
+import {isArchitecture,nearbyStair,adjacentUpper,UPPER_Y} from './raft/Architecture';
 import { StructureGraph } from './raft/StructureGraph';
 import { RaftRenderer } from './raft/RaftRenderer';
 import { BuildTargetPicker, evaluateBuild, type BuildTarget } from './raft/BuildTarget';
@@ -557,7 +558,7 @@ export class Game {
     this.pitchDeltaAccum = 0;
 
     // Sobrevivência
-    const sheltered = this.raftGrid.hasModuleKind('cobertura');
+    const sheltered = this.raftGrid.hasModuleKind('cobertura')||this.raftGrid.hasModuleKind('telhado');
     this.survival.setOxygenCapacity(oxygenCapacity(this.inventory.getItemCount('tanque_mergulho')>0));
     this.dive.update(this.player.position.x,this.player.position.z,this.player.inWater);
     this.predators.update(dt,this.player.position,this.player.underwater&&!this.survival.dead,this.seed,this.options.quality==='baixo',(damage,name)=>{this.survival.applyDamage(damage*(this.survival.difficulty==='dificil'?1.3:this.survival.difficulty==='historia'?.55:1));this.hud.pushToast(name+' atacou!','danger');},(x,z)=>this.chunks.groundHeight(x,z));
@@ -854,6 +855,7 @@ export class Game {
   private handleInteract(): void {
     if(this.helmKey||this.rowing){this.helmKey=null;this.rowing=false;this.resetMenuInput();this.hud.pushToast('Navegação liberada.','info');return;}
     if(this.tryBoardRaft())return;
+    if(this.useStair())return;
     if(this.player.underwater){
       const p=this.player.position,node=this.dive.nearest(p.x,p.y,p.z);
       if(node){const trial=this.inventory.clone();for(const l of node.loot)if(trial.addItem(l.itemId,l.count).overflow){this.hud.pushToast('Mochila cheia. Recursos preservados.','warn');return;}
@@ -958,6 +960,7 @@ export class Game {
           this.toggleNavModule('vela');
           return;
         }
+        case 'porta': {if(!this.isOnDeck())return;nearestMod.active=!nearestMod.active;this.raftRenderer.syncDynamicModule(nearestMod);this.hud.pushToast(nearestMod.active?'Porta aberta.':'Porta fechada.','info');return;}
         case 'motor': {this.refuelMotor();return;}
         case 'farol_nav': {this.toggleEquipment('farol_nav');return;}
         case 'radar': {this.toggleEquipment('radar');return;}
@@ -1104,6 +1107,10 @@ export class Game {
     this.updateBuildGhost();
     if (!this.ghostTarget) return;
     const { gx, gz } = this.ghostTarget;
+    const mod=this.raftGrid.getModuleAt(gx,gz);
+    if(mod&&isArchitecture(mod.kind)){
+      this.raftGrid.modules.delete(cellKey(gx,gz));this.inventory.addItem('madeira',1);this.raftRenderer.syncWithGrid(this.raftGrid);this.updateBuildGhost();this.hud.pushToast('Peça de cabine desmontada.','info');return;
+    }
     const res = StructureGraph.removeFoundation(this.raftGrid, gx, gz, false);
     if (!res.ok) {
       this.hud.pushToast(res.reason ?? 'Não foi possível desmontar.', 'warn');
@@ -1138,6 +1145,18 @@ export class Game {
         ? 'Você desmaiou no mar e renasceu na jangada (20% dos materiais comuns perdidos).'
         : 'Você renasceu na jangada com segurança!';
     this.hud.pushToast(msg, 'warn');
+  }
+
+  private useStair():boolean{
+    if(this.player.inWater)return false;
+    const p=this.player.position,local=this.raftRenderer.worldToLocalXZ(p.x,p.z,this.localQuery);
+    const stair=nearbyStair(this.raftGrid,local.x,local.y);if(!stair)return false;
+    const rel=p.y-this.raftRenderer.root.position.y;
+    if(rel>UPPER_Y+.65||rel<-.2)return false;
+    const upper=adjacentUpper(this.raftGrid,stair.gx,stair.gz);if(!upper)return false;
+    const down=rel>UPPER_Y-.5;
+    this.raftRenderer.localToWorld(down?stair.gx:upper.gx,down?.26:UPPER_Y+.04,down?stair.gz:upper.gz,p);
+    this.player.velocity.set(0,0,0);this.hud.pushToast(down?'Você desceu ao convés.':'Você subiu ao segundo andar.','info');return true;
   }
 
   private isOnDeck():boolean{
@@ -1482,6 +1501,7 @@ export class Game {
   private computePromptText(): string {
     if(this.rowing||this.helmKey)return this.raftGrid.isAnchorDropped()?'Âncora baixada — [H] recolher · [E/Ação] sair':(this.rowing?'Remo':this.raftGrid.modules.get(this.helmKey??'')?.kind==='motor'?'Motor':'Leme')+' · W/S avançar/recuar · A/D virar · [E/Ação] sair';
     if(this.canBoardRaft())return '[E/Ação] Subir na jangada';
+    if(!this.player.inWater){const p=this.player.position,local=this.raftRenderer.worldToLocalXZ(p.x,p.z,this.localQuery);if(nearbyStair(this.raftGrid,local.x,local.y))return p.y-this.raftRenderer.root.position.y>UPPER_Y-.5?'[E/Ação] Descer ao convés':'[E/Ação] Subir ao segundo andar';}
     if (this.buildRecipe && !this.ghostTarget) return 'Aponte para o convés ou uma borda próxima (até 5,5 m).';
     if (this.buildRecipe && this.ghostTarget && !this.ghostTarget.valid) return this.ghostTarget.reason;
     if (this.buildRecipe?.placesStructure === 'borda_reforcada') {
@@ -1511,6 +1531,7 @@ export class Game {
         cama: '[E] Descansar',
         radio: '[E] Sintonizar Rádio (Lia)',
         leme:'[E] Assumir leme',
+        porta:mod.active?'[E/Ação] Fechar porta':'[E/Ação] Abrir porta',
         motor:'[E] Abastecer motor · [K] Pilotar',farol_nav:'[E] Ligar/desligar farol',radar:'[E] Ligar/desligar radar',
         vela: mod.active ? '[E] Recolher vela' : '[E] Abrir vela',
         ancora: mod.active ? '[E] Subir âncora' : '[E] Lançar âncora',

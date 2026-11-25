@@ -20,6 +20,13 @@ export type StructureKind =
   | 'bandeira'
   | 'farol_nav'
   | 'radar'
+  | 'parede'
+  | 'porta'
+  | 'janela'
+  | 'corrimao'
+  | 'piso_superior'
+  | 'escada_interna'
+  | 'telhado'
   | 'radio'
   | 'cobertura'
   | 'horta'
@@ -39,6 +46,13 @@ export interface RecipeDef {
 }
 
 export const RECIPES: RecipeDef[] = [
+  {id:'build_parede',name:'Parede de madeira',description:'Painel de cabine com colisão. R gira a peça.',bench:'construcao',ingredients:[{itemId:'madeira',count:3}],placesStructure:'parede',structureMass:12},
+  {id:'build_porta',name:'Porta de cabine',description:'Abre e fecha com E/Ação. R define o lado.',bench:'construcao',ingredients:[{itemId:'madeira',count:4},{itemId:'sucata',count:1}],placesStructure:'porta',structureMass:14},
+  {id:'build_janela',name:'Parede com janela',description:'Abertura para iluminação e visão.',bench:'construcao',ingredients:[{itemId:'madeira',count:3},{itemId:'plastico',count:1}],placesStructure:'janela',structureMass:12},
+  {id:'build_corrimao',name:'Corrimão',description:'Proteção lateral de madeira.',bench:'construcao',ingredients:[{itemId:'madeira',count:2},{itemId:'corda',count:1}],placesStructure:'corrimao',structureMass:6},
+  {id:'build_piso_superior',name:'Piso superior com pilares',description:'Plataforma a 2,4 m do convés, acessível por escada interna em célula adjacente.',bench:'construcao',ingredients:[{itemId:'madeira',count:5},{itemId:'corda',count:2}],placesStructure:'piso_superior',structureMass:24},
+  {id:'build_escada_interna',name:'Escada interna',description:'Instale ao lado de piso superior; E/Ação sobe ou desce.',bench:'construcao',ingredients:[{itemId:'madeira',count:4},{itemId:'corda',count:1}],placesStructure:'escada_interna',structureMass:15},
+  {id:'build_telhado',name:'Telhado inclinado',description:'Cobertura de madeira para cabines.',bench:'construcao',ingredients:[{itemId:'madeira',count:4},{itemId:'folha',count:3}],placesStructure:'telhado',structureMass:16},
   {id:'rec_combustivel',name:'Combustível artesanal',description:'Uma carga fornece até 60 segundos de motor em aceleração máxima.',bench:'manual',ingredients:[{itemId:'alga_marinha',count:3},{itemId:'plastico',count:1}],outputItemId:'combustivel',outputCount:1},
   {id:'rec_binoculo',name:'Binóculo',description:'Selecione e use para aproximar a visão (use novamente para voltar).',bench:'manual',ingredients:[{itemId:'plastico',count:3},{itemId:'sucata',count:2}],outputItemId:'binoculo',outputCount:1},
   {id:'build_motor',name:'Motor naval',description:'K/Motor para pilotar. E perto do motor ou usar combustível para abastecer. W/S e A/D.',bench:'construcao',ingredients:[{itemId:'minerio_marinho',count:6},{itemId:'sucata',count:8},{itemId:'madeira',count:4}],placesStructure:'motor',structureMass:65},
