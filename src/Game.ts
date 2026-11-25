@@ -102,7 +102,7 @@ export class Game {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, maxDpr));
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.shadowMap.type = THREE.PCFShadowMap;
   }
 
   private initScene(): void {
@@ -190,6 +190,7 @@ export class Game {
       this.touchMoveY = y;
     };
     this.hud.onTouchAction = (action) => {
+      if (!this.started || this.modals.isOpen()) return;
       if (action === 'jump') this.touchJumpQueued = true;
       else if (action === 'interact') this.handleInteract();
       else if (action === 'use') this.handlePrimaryUse();
@@ -208,14 +209,13 @@ export class Game {
 
     window.addEventListener('keydown', (e) => {
       if (!this.started) return;
-      this.keys.add(e.code);
-
       if (e.code === 'Escape') {
-        if (this.buildRecipe) {
-          this.exitBuildMode();
-        } else if (this.modals.isOpen()) {
+        if (e.repeat) return;
+        if (this.modals.isOpen()) {
           this.modals.closeAll();
-          this.loop.paused = false;
+          this.resumeAfterMenu();
+        } else if (this.buildRecipe) {
+          this.exitBuildMode();
         } else {
           this.openPauseMenu();
         }
@@ -223,6 +223,7 @@ export class Game {
       }
 
       if (this.modals.isOpen()) return;
+      this.keys.add(e.code);
 
       if (e.code === 'KeyE') {
         if (!this.hud.advanceDialogue()) this.handleInteract();
@@ -264,7 +265,8 @@ export class Game {
       if (!this.started || this.modals.isOpen()) return;
       if (event instanceof PointerEvent && event.pointerType === 'touch') return;
       if (document.pointerLockElement !== this.canvas && !this.isMobileDevice()) {
-        this.canvas.requestPointerLock?.();
+        // A captura pode ser rejeitada após Esc ou quando o navegador não a permite.
+        try { void Promise.resolve(this.canvas.requestPointerLock?.()).catch(() => {}); } catch { /* arrastar continua disponível */ }
       }
       this.handlePrimaryUse();
     });
@@ -932,6 +934,7 @@ export class Game {
 
   private buildPanelContext(): PanelContext {
     return {
+      onClose: () => this.resumeAfterMenu(),
       inventory: this.inventory,
       quests: this.quests,
       options: this.options,
@@ -955,7 +958,7 @@ export class Game {
       onSelectBuild: (kind: StructureKind, recipe: RecipeDef) => {
         this.buildRecipe = recipe;
         this.buildRotation = 0;
-        this.loop.paused = false;
+        this.resumeAfterMenu();
         this.hud.pushToast(`Modo construção: ${kind}. Aponte para a jangada e clique para montar.`, 'info');
       },
       onUseInventorySlot: (idx) => {
@@ -995,13 +998,30 @@ export class Game {
         }
         this.restoreFromSave(res.data);
         this.modals.closeAll();
-        this.loop.paused = false;
+        this.resumeAfterMenu();
         this.hud.pushToast('Mundo importado!', 'success');
       },
     };
   }
 
+  private resetMenuInput(): void {
+    this.keys.clear();
+    this.touchMoveX = 0;
+    this.touchMoveY = 0;
+    this.touchJumpQueued = false;
+    this.yawDeltaAccum = 0;
+    this.pitchDeltaAccum = 0;
+    this.lastDragLook = null;
+  }
+
+  private resumeAfterMenu(): void {
+    this.resetMenuInput();
+    if (this.started) this.loop.paused = false;
+  }
+
   private openPanel(tab: PanelTab): void {
+    if (!this.started) return;
+    this.resetMenuInput();
     if (document.pointerLockElement === this.canvas) {
       document.exitPointerLock?.();
     }
@@ -1010,14 +1030,14 @@ export class Game {
   }
 
   private openPauseMenu(): void {
+    if (!this.started) return;
+    this.resetMenuInput();
     if (document.pointerLockElement === this.canvas) {
       document.exitPointerLock?.();
     }
     this.loop.paused = true;
     this.modals.showPauseMenu({
-      onResume: () => {
-        this.loop.paused = false;
-      },
+      onResume: () => this.resumeAfterMenu(),
       onSave: () => {
         void this.saveWorld('rotating');
       },

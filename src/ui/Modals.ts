@@ -8,6 +8,7 @@ import type { GameOptions } from '../save/Store';
 export type PanelTab = 'mochila' | 'construcao' | 'diario' | 'opcoes';
 
 export interface PanelContext {
+  onClose: () => void;
   inventory: Inventory;
   quests: QuestEngine;
   options: GameOptions;
@@ -49,6 +50,7 @@ export class Modals {
 
   closeAll(): void {
     this.currentTab = null;
+    this.lastCtx = null;
     this.modalBackdrop.classList.add('hidden');
     this.menuBackdrop.classList.add('hidden');
   }
@@ -178,7 +180,7 @@ export class Modals {
           <button class="tab-btn ${tab === 'construcao' ? 'active' : ''}" data-t="construcao">${gameIcon('construcao')} Construção Naval</button>
           <button class="tab-btn ${tab === 'diario' ? 'active' : ''}" data-t="diario">${gameIcon('diario')} Diário</button>
           <button class="tab-btn ${tab === 'opcoes' ? 'active' : ''}" data-t="opcoes">${gameIcon('opcoes')} Opções & Saves</button>
-          <button class="btn" id="panel-close" style="margin-left:auto;">Fechar [Esc]</button>
+          <button class="btn" id="panel-close" style="margin-left:auto;">${gameIcon('close')} Fechar [Esc]</button>
         </div>
         <div class="modal-body" id="panel-body"></div>
       </div>
@@ -190,7 +192,10 @@ export class Modals {
         this.renderPanel();
       });
     });
-    this.modalBackdrop.querySelector('#panel-close')?.addEventListener('click', () => this.closeAll());
+    this.modalBackdrop.querySelector('#panel-close')?.addEventListener('click', () => {
+      this.closeAll();
+      ctx.onClose();
+    });
 
     const body = this.modalBackdrop.querySelector('#panel-body')!;
     if (tab === 'mochila') this.renderBackpackAndCraft(body, ctx);
@@ -308,8 +313,8 @@ export class Modals {
         const id = el.getAttribute('data-build');
         const recipe = RECIPES.find((r) => r.id === id);
         if (recipe?.placesStructure) {
-          ctx.onSelectBuild(recipe.placesStructure, recipe);
           this.closeAll();
+          ctx.onSelectBuild(recipe.placesStructure, recipe);
         }
       });
     });

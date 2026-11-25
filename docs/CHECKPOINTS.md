@@ -40,3 +40,8 @@
 ### Melhoria de interface — ícones marítimos
 - Catálogo SVG original e local para 23 itens, 12 construções, vitais, navegação, controles e diário; sem dependência de emoji para essas áreas.
 - Barra rápida só reconstrói os oito botões quando inventário, durabilidade ou seleção mudam; ícones com cache, rótulos acessíveis e estilos responsivos. Testes de catálogo adicionados; inspeção visual no navegador pendente.
+
+
+### Correção — retorno de fabricação/construção e sombras
+- Substituído PCFSoftShadowMap removido por PCFShadowMap suportado. O aviso não era uma exceção fatal.
+- Fechar painel por botão ou Esc retoma o loop e limpa entradas acumuladas; seleção de construção fecha antes de retomar, Esc prioriza painel aberto, controles touch não disparam ações através dos menus e falha de pointer lock não interrompe jogo. Reprodução manual em navegador ainda pendente.
