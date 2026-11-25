@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { plankDeck } from '../render/DetailGeometry';
+import { plankDeck, reinforcedDeckFrame } from '../render/DetailGeometry';
 import { collectionNet, plantGeometry, grillGeometry, radioFace, roofGeometry } from '../render/EquipmentGeometry';
 import { cellKey, RaftGrid, type PlacedModule } from './Grid';
 import { getWaveHeight, getWaveNormal } from '../world/Ocean';
@@ -20,11 +20,13 @@ export class RaftRenderer {
   private ghostMesh: THREE.Mesh;
 
   private readonly deckGeo = plankDeck();
-  private readonly trimGeo = new THREE.BoxGeometry(1.0, 0.25, 1.0);
+  private readonly trimGeo = reinforcedDeckFrame();
+  private readonly ghostBoxGeo = new THREE.BoxGeometry(0.94, 0.36, 0.94);
   private readonly plankMat = new THREE.MeshStandardMaterial({ color: 0x9c6b3b, roughness: 0.85 });
+  private readonly reinforcedWoodMat = new THREE.MeshStandardMaterial({ color: 0x725039, roughness: 0.82 });
   private readonly coreMat = new THREE.MeshStandardMaterial({ color: 0xb68249, roughness: 0.78 });
   private readonly damagedMat = new THREE.MeshStandardMaterial({ color: 0x6e3b2e, roughness: 0.9 });
-  private readonly reinforcedMat = new THREE.MeshStandardMaterial({ color: 0x5c6d7a, metalness: 0.45, roughness: 0.5 });
+  private readonly reinforcedMat = new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, metalness: 0.35, roughness: 0.48 });
 
   private readonly ghostValidMat = new THREE.MeshBasicMaterial({
     color: 0x35e085,
@@ -40,7 +42,7 @@ export class RaftRenderer {
   });
 
   constructor() {
-    this.ghostMesh = new THREE.Mesh(new THREE.BoxGeometry(0.94, 0.36, 0.94), this.ghostValidMat);
+    this.ghostMesh = new THREE.Mesh(this.ghostBoxGeo, this.ghostValidMat);
     this.ghostMesh.visible = false;
     this.root.add(this.ghostMesh);
   }
@@ -66,8 +68,8 @@ export class RaftRenderer {
         grp.add(deck);
 
         const trim = new THREE.Mesh(this.trimGeo, this.reinforcedMat);
-        trim.scale.set(1.02, 0.45, 1.02);
-        trim.position.y = 0.04;
+        trim.castShadow = false;
+        trim.receiveShadow = true;
         trim.visible = cell.reinforced;
         grp.add(trim);
 
@@ -82,7 +84,7 @@ export class RaftRenderer {
       if (cell.hp < cell.maxHp * 0.55) {
         deck.material = this.damagedMat;
       } else {
-        deck.material = cell.isCore ? this.coreMat : this.plankMat;
+        deck.material = cell.isCore ? this.coreMat : cell.reinforced ? this.reinforcedWoodMat : this.plankMat;
       }
     }
 
@@ -271,7 +273,8 @@ export class RaftRenderer {
     this.ghostMesh.visible = true;
     this.ghostMesh.material = valid ? this.ghostValidMat : this.ghostInvalidMat;
     const isFoundation = kind === 'fundacao' || kind === 'borda_reforcada';
-    this.ghostMesh.position.set(gx * RaftGrid.CELL_SIZE, isFoundation ? 0.1 : 0.42, gz * RaftGrid.CELL_SIZE);
+    this.ghostMesh.geometry = kind === 'borda_reforcada' ? this.trimGeo : this.ghostBoxGeo;
+    this.ghostMesh.position.set(gx * RaftGrid.CELL_SIZE, kind === 'borda_reforcada' ? 0.025 : isFoundation ? 0.1 : 0.42, gz * RaftGrid.CELL_SIZE);
     this.ghostMesh.rotation.y = (rotation * Math.PI) / 2;
   }
 
@@ -319,10 +322,11 @@ export class RaftRenderer {
       if (obj instanceof THREE.Mesh) { geometries.add(obj.geometry); if(Array.isArray(obj.material)) obj.material.forEach(m=>materials.add(m)); else materials.add(obj.material); }
     });
     geometries.forEach(g=>g.dispose()); materials.forEach(m=>m.dispose()); this.moduleTemplates.clear();
-    this.ghostMesh.geometry.dispose();
+    this.ghostBoxGeo.dispose();
     this.deckGeo.dispose();
     this.trimGeo.dispose();
     this.plankMat.dispose();
+    this.reinforcedWoodMat.dispose();
     this.coreMat.dispose();
     this.damagedMat.dispose();
     this.reinforcedMat.dispose();

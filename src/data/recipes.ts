@@ -158,7 +158,7 @@ export const RECIPES: RecipeDef[] = [
   {
     id: 'build_borda_reforcada',
     name: 'Reforço de borda',
-    description: 'Protege a fundação contra ataques de predadores.',
+    description: 'Adiciona uma moldura de aço à fundação existente: resistência de 100 para 220 HP. Não cria uma nova fundação.',
     bench: 'construcao',
     ingredients: [
       { itemId: 'madeira', count: 3 },

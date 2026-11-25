@@ -45,3 +45,7 @@
 ### Correção — retorno de fabricação/construção e sombras
 - Substituído PCFSoftShadowMap removido por PCFShadowMap suportado. O aviso não era uma exceção fatal.
 - Fechar painel por botão ou Esc retoma o loop e limpa entradas acumuladas; seleção de construção fecha antes de retomar, Esc prioriza painel aberto, controles touch não disparam ações através dos menus e falha de pointer lock não interrompe jogo. Reprodução manual em navegador ainda pendente.
+
+
+### Correção visual — borda reforçada
+- Moldura de aço aparente acima das tábuas, rebites e madeira escurecida, com geometria compartilhada e uma malha por reforço; preview de moldura no modo construção. Mantém a regra original de 100→220 HP ao reforçar uma fundação comum. Núcleo inicial preservado. Testes de geometria, visibilidade e resistência adicionados; validação visual no navegador pendente.

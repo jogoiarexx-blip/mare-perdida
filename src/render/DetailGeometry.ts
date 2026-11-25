@@ -65,3 +65,28 @@ export function survivorHead(): THREE.BufferGeometry {
 export function survivorVest(): THREE.BufferGeometry {
   return combine([box(.12,.42,.08,-.13,1.12,-.145),box(.12,.42,.08,.13,1.12,-.145),box(.40,.07,.32,0,.96,0),box(.32,.34,.12,0,1.12,.19)]);
 }
+
+/** Moldura metálica visível por cima do convés (topo da madeira em y=0,19).
+ * Aros e rebites agrupados em uma geometria compartilhada, sem novos draw calls por peça.
+ */
+export function reinforcedDeckFrame(): THREE.BufferGeometry {
+  const rails: THREE.BufferGeometry[] = [];
+  for (const sign of [-1,1]) {
+    rails.push(box(.98,.19,.095,0,.12,sign*.445));
+    rails.push(box(.095,.19,.79,sign*.445,.12,0));
+    for(const along of [-.27,0,.27]) {
+      rails.push(new THREE.CylinderGeometry(.024,.024,.018,6).translate(along,.224,sign*.445));
+      rails.push(new THREE.CylinderGeometry(.024,.024,.018,6).translate(sign*.445,.224,along));
+    }
+  }
+  // Uma única malha com cor de vértice para distinguir aço e cabeças dos rebites.
+  const colors = [new THREE.Color(0x99aebb),new THREE.Color(0xe1e7e9)];
+  for (let i=0;i<rails.length;i++){
+    const geo=rails[i], color=colors[i%8<2?0:1];
+    const count=geo.getAttribute('position').count;
+    const values=new Float32Array(count*3);
+    for(let j=0;j<count;j++) color.toArray(values,j*3);
+    geo.setAttribute('color',new THREE.BufferAttribute(values,3));
+  }
+  return combine(rails);
+}

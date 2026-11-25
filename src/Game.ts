@@ -861,6 +861,7 @@ export class Game {
       this.quests.syncFoundationCount(this.raftGrid.foundations.size);
       this.bus.emit('structurePlaced', { kind, gx: target.gx, gz: target.gz });
       this.sfx.playBuild();
+      if (kind === 'borda_reforcada') this.hud.pushToast('Borda reforçada instalada: 220/220 HP.', 'success');
       if (kind !== 'fundacao' && kind !== 'borda_reforcada') {
         this.exitBuildMode();
       }
@@ -1155,6 +1156,13 @@ export class Game {
   }
 
   private computePromptText(): string {
+    if (this.buildRecipe?.placesStructure === 'borda_reforcada') {
+      const t = this.ghostTarget;
+      const f = t ? this.raftGrid.getFoundation(t.gx,t.gz) : undefined;
+      if (!f) return 'Aponte para uma fundação de madeira existente.';
+      if (f.reinforced) return 'Borda já reforçada — ' + Math.ceil(f.hp) + '/' + f.maxHp + ' HP';
+      return '[Click / F] Reforçar madeira: ' + Math.ceil(f.hp) + '/' + f.maxHp + ' → 220 HP';
+    }
     if (this.buildRecipe) return '[Click] Colocar peça · [R] Girar · [X] Desmontar';
 
     for (const poi of this.sector.pois) {
