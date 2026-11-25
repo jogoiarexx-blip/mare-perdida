@@ -153,6 +153,8 @@ export class Game {
     this.renderer.shadowMap.needsUpdate = true;
   }
 
+  private readonly greenCampaign=new GreenCampaign();
+
   private initScene(): void {
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(this.options.fov, window.innerWidth / window.innerHeight, 0.1, 240);
@@ -168,6 +170,7 @@ export class Game {
     this.chunks=new ChunkManager(this.seed,low,true);
     this.scene.add(this.chunks.group);
     this.scene.add(this.fauna.group);
+    this.scene.add(this.greenCampaign.group);this.greenCampaign.reset(this.seed);
     this.dive=new DiveWorld(this.seed,low);this.scene.add(this.dive.group,this.predators.group,this.diveLamp,this.diveLamp.target);this.diveLamp.visible=false;
     this.chunks.update(0,0,2);
     this.sector = new SectorManager(this.seed);
@@ -414,7 +417,7 @@ export class Game {
     this.waterFx.reset();
     this.renderOrigin.reset();this.renderer.shadowMap.needsUpdate=true;
     this.seed = Math.floor(Math.random() * 900000) + 100000;
-    this.chunks.reset(this.seed);
+    this.chunks.reset(this.seed);this.greenCampaign.reset(this.seed);
     this.fauna.reset();this.predators.reset();this.lampEnabled=true;this.dive.reset(this.seed,this.options.quality==='baixo');
     this.discovery.reset();this.discovery.visit(0,0);this.helmKey=null;this.rowing=false;this.binocular=false;this.radarTimer=0;this.radarTarget=null;
     this.chunks.update(0,0,9);
@@ -462,7 +465,7 @@ export class Game {
     this.raftRenderer.syncWithGrid(this.raftGrid);
     this.inventory = Inventory.deserialize(data.inventory);
     this.survival.restore(data.survival);
-    this.quests.restore(data.quests);
+    this.quests.restore(data.quests);this.greenCampaign.reset(this.seed);
     this.wreckLooted = data.worldFlags.wreckLooted;
     this.buoyInspected = data.worldFlags.buoyInspected;
     this.sharkRepelledCount = data.worldFlags.sharkRepelledCount;
@@ -484,6 +487,7 @@ export class Game {
     this.sfx.startAmbience();
     this.loop.paused = false;
     this.modals.closeAll();
+    this.quests.reconcileUnlockedQuests();
   }
 
   private fixedUpdate(dt: number): void {
@@ -491,6 +495,9 @@ export class Game {
 
     this.chunks.update(this.player.position.x,this.player.position.z);
     this.discovery.visit(this.player.position.x,this.player.position.z);
+    const m06=this.quests.states.get('M06');
+    if(m06?.status==='ACTIVE'&&!m06.progress.m06_anchor&&anchoredNearGreenIsland(this.seed,this.raftRenderer.x,this.raftRenderer.z,this.raftGrid.isAnchorDropped()))this.bus.emit('landmarkReached',{landmarkId:'green_anchor'});
+    this.greenCampaign.update(this.seed,this.player.position.x,this.player.position.z,this.greenTarget());
     this.clock.advance(dt);
     this.weather.setWeather(weatherAt(this.seed,this.clock.elapsedSeconds));
     this.weather.update(this.clock.timeOfDay, this.raftRenderer.x, this.raftRenderer.z, dt);
@@ -870,11 +877,31 @@ export class Game {
     }
   }
 
+  private greenTarget():GreenPointId|null{
+    const m6=this.quests.states.get('M06'),m7=this.quests.states.get('M07');
+    if(m6?.status==='ACTIVE'&&m6.progress.m06_anchor&&!m6.progress.m06_spring)return 'green_spring';
+    if(m7?.status==='ACTIVE')return !m7.progress.m07_bento?'green_bento':!m7.progress.m07_stock?'green_stock':null;
+    return null;
+  }
+  private interactGreen():boolean{
+    if(this.player.inWater)return false;
+    const point=this.greenCampaign.nearby(this.greenTarget(),this.player.position);if(!point)return false;
+    if(point.id==='green_stock'){
+      const loot=[{itemId:'semente_salina',count:3},{itemId:'fruta_colhida',count:2}];
+      const trial=this.inventory.clone();for(const l of loot)if(trial.addItem(l.itemId,l.count).overflow){this.hud.pushToast('Mochila cheia. Estoque preservado.','warn');return true;}
+      this.collectLoot(loot,'bento');
+    }
+    if(point.id==='green_spring')this.hud.enqueueDialogue('Diário de Bordo',['Encontrei uma nascente de água doce. Há sinais de alguém vivendo nesta ilha.']);
+    if(point.id==='green_bento')this.hud.enqueueDialogue('Bento',['Você veio do mar? Sou Bento. Salvei algumas sementes antes das águas subirem.','O caixote está perto daqui. Leve as sementes para a jangada.']);
+    this.bus.emit('landmarkReached',{landmarkId:point.id});
+    return true;
+  }
   private handleInteract(): void {
     if(this.helmKey||this.rowing){this.helmKey=null;this.rowing=false;this.resetMenuInput();this.hud.pushToast('Navegação liberada.','info');return;}
     if(this.tryBoardRaft())return;
     const door=this.getNearbyDoor();if(door){door.active=!door.active;this.raftRenderer.syncDynamicModule(door);this.hud.pushToast(door.active?'Porta aberta.':'Porta fechada.','info');return;}
     if(this.useStair())return;
+    if(this.interactGreen())return;
     if(this.player.underwater){
       const p=this.player.position,node=this.dive.nearest(p.x,p.y,p.z);
       if(node){const trial=this.inventory.clone();for(const l of node.loot)if(trial.addItem(l.itemId,l.count).overflow){this.hud.pushToast('Mochila cheia. Recursos preservados.','warn');return;}
@@ -1500,6 +1527,9 @@ export class Game {
       const distance=Math.max(0,Math.round(Math.hypot(island.x-this.player.position.x,island.z-this.player.position.z)-island.radius));
       if(distance<100)compassText+=' · '+biomeLabel(island)+' '+distance+' m';
     }
+    const green=this.greenCampaign.target(this.greenTarget());
+    if(green)compassText+=' · '+green.label+' '+Math.round(Math.hypot(green.x-this.player.position.x,green.z-this.player.position.z))+' m '+cardinal(bearing(green.x-this.player.position.x,green.z-this.player.position.z));
+    else if(this.quests.states.get('M06')?.status==='ACTIVE')compassText+=' · Primeira ilha '+Math.round(Math.hypot(40-this.player.position.x,-67-this.player.position.z))+' m '+cardinal(bearing(40-this.player.position.x,-67-this.player.position.z));
     if(this.player.inWater)compassText+=' · Prof. '+Math.max(0,-this.player.position.y).toFixed(1)+' m';
     const raftDist=Math.round(Math.hypot(this.raftRenderer.x-this.player.position.x,this.raftRenderer.z-this.player.position.z));
     if(!this.isOnDeck())compassText+=' · Jangada '+raftDist+' m '+cardinal(bearing(this.raftRenderer.x-this.player.position.x,this.raftRenderer.z-this.player.position.z));
@@ -1534,6 +1564,7 @@ export class Game {
     if(this.canBoardRaft())return '[E/Ação] Subir na jangada';
     const door=this.getNearbyDoor();if(door)return door.active?'[E/Ação] Fechar porta':'[E/Ação] Abrir porta';
     if(!this.player.inWater){const p=this.player.position,local=this.raftRenderer.worldToLocalXZ(p.x,p.z,this.localQuery);if(nearbyStair(this.raftGrid,local.x,local.y))return p.y-this.raftRenderer.root.position.y>UPPER_Y-.5?'[E/Ação] Descer ao convés':'[E/Ação] Subir ao segundo andar';}
+    const green=!this.player.inWater?this.greenCampaign.nearby(this.greenTarget(),this.player.position):null;if(green)return '[E/Ação] '+green.label;
     if (this.buildRecipe && !this.ghostTarget) return 'Aponte para o convés ou uma borda próxima (até 5,5 m).';
     if (this.buildRecipe && this.ghostTarget && !this.ghostTarget.valid) return this.ghostTarget.reason;
     if (this.buildRecipe?.placesStructure === 'borda_reforcada') {

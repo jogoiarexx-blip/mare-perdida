@@ -7,6 +7,7 @@ export interface GameEvents {
   structureRepaired: { gx: number; gz: number };
   regionEntered: { regionId: string };
   npcRescued: { npcId: string };
+  landmarkReached: { landmarkId: string };
   bossResolved: { bossId: string; outcome: 'repelled' | 'defeated' | 'pacified' };
   dialogueChoice: { dialogueId: string; choiceId: string };
   questUpdated: { questId: string; status: string };

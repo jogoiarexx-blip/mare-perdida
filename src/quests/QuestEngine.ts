@@ -1,5 +1,5 @@
 import type { EventBus } from '../core/EventBus';
-import { CHAPTER_1_QUESTS, DIVE_QUESTS, type QuestDef, type QuestStatus } from '../data/quests';
+import { CHAPTER_1_QUESTS, CHAPTER_2_QUESTS, DIVE_QUESTS, type QuestDef, type QuestStatus } from '../data/quests';
 
 export interface QuestRuntimeState {
   status: QuestStatus;
@@ -40,7 +40,7 @@ export class QuestEngine {
 
   constructor(
     private readonly bus: EventBus,
-    private readonly defs: QuestDef[] = [...CHAPTER_1_QUESTS,...DIVE_QUESTS]
+    private readonly defs: QuestDef[] = [...CHAPTER_1_QUESTS,...CHAPTER_2_QUESTS,...DIVE_QUESTS]
   ) {
     this.initStates();
     this.bindEvents();
@@ -140,6 +140,7 @@ export class QuestEngine {
   private bindEvents(): void {
     this.dispose();
     this.unsubs.push(
+      this.bus.on('landmarkReached', ({landmarkId})=>this.applyProgress('landmark',landmarkId,1)),
       this.bus.on('itemCollected', ({ itemId, count }) => this.applyProgress('collect', itemId, count)),
       this.bus.on('crafted', ({ recipeId }) => this.applyProgress('craft', recipeId, 1)),
       this.bus.on('structurePlaced', ({ kind }) => {
@@ -244,6 +245,9 @@ export class QuestEngine {
       this.syncExistingProgress();
     }
   }
+
+  /** Saves anteriores não possuem estados de capítulos adicionados posteriormente. */
+  reconcileUnlockedQuests():void{this.unlockDependentQuests();this.syncExistingProgress();}
 
   getActiveMainQuest(): { def: QuestDef; state: QuestRuntimeState } | null {
     for (const q of this.defs) {

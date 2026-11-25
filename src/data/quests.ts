@@ -11,7 +11,8 @@ export type ObjectiveKind =
   | 'radioTune'
   | 'bossResolve'
   | 'rest'
-  | 'inspectBuoy';
+  | 'inspectBuoy'
+  | 'landmark';
 
 export interface QuestObjectiveDef {
   id: string;
@@ -295,4 +296,18 @@ export const DIVE_QUESTS:QuestDef[]=[
  {id:'DIVE01',chapter:3,type:'side',title:'Primeira descida',summary:'Recupere algas e minério do fundo do mar.',requires:[],objectives:[{id:'d1a',description:'Coletar 2 algas',kind:'collect',target:'alga_marinha',count:2,scope:'world'},{id:'d1b',description:'Coletar 2 minérios',kind:'collect',target:'minerio_marinho',count:2,scope:'world'}],rewards:{xp:55,credits:20},failPolicy:'Recursos disponíveis em novos setores.'},
  {id:'DIVE02',chapter:3,type:'side',title:'Equipamento de mergulho',summary:'Fabrique tanque, lanterna e nadadeiras.',requires:[],objectives:[{id:'d2a',description:'Fabricar tanque',kind:'craft',target:'rec_tanque_mergulho',count:1,scope:'personal'},{id:'d2b',description:'Fabricar lanterna',kind:'craft',target:'rec_lanterna_mergulho',count:1,scope:'personal'},{id:'d2c',description:'Fabricar nadadeiras',kind:'craft',target:'rec_nadadeiras',count:1,scope:'personal'}],rewards:{xp:80,credits:30},failPolicy:'Receitas sempre disponíveis.'},
  {id:'DIVE03',chapter:3,type:'side',title:'Segredos do naufrágio',summary:'Explore um casco e recupere uma relíquia Atlas.',requires:[],objectives:[{id:'d3a',description:'Recuperar relíquia Atlas',kind:'collect',target:'reliquia_atlas',count:1,scope:'world'}],rewards:{xp:100,credits:50},failPolicy:'Procure outro naufrágio em novos setores.'}
+];
+
+/** Capítulo 2: primeiras missões do Arquipélago Verde previstas no GDD. */
+export const CHAPTER_2_QUESTS:QuestDef[]=[
+ {id:'M06',chapter:2,type:'main',title:'Primeira terra',summary:'Ancore perto da primeira ilha e encontre a nascente.',requires:['M05'],objectives:[
+  {id:'m06_anchor',description:'Ancorar perto da ilha indicada',kind:'landmark',target:'green_anchor',count:1,scope:'world'},
+  {id:'m06_spring',description:'Investigar a nascente',kind:'landmark',target:'green_spring',count:1,scope:'world'}],
+  rewards:{xp:80,credits:25,unlocks:['machado']},checkpoint:true,failPolicy:'A ilha e a nascente permanecem no mesmo local; volte com a jangada e ancore.',
+  dialogueOnStart:{speaker:'Lia',lines:['Há terra à vista. Ancore perto da ilha marcada na bússola.','Procure uma nascente: água doce é nossa prioridade.']}},
+ {id:'M07',chapter:2,type:'main',title:'Sementes do futuro',summary:'Localize Bento e recupere o estoque agrícola.',requires:['M06'],objectives:[
+  {id:'m07_bento',description:'Conversar com Bento',kind:'landmark',target:'green_bento',count:1,scope:'world'},
+  {id:'m07_stock',description:'Recuperar o caixote de sementes',kind:'landmark',target:'green_stock',count:1,scope:'world'}],
+  rewards:{xp:95,credits:35},checkpoint:true,failPolicy:'Bento permanece na ilha. Se a mochila estiver cheia, o caixote continuará disponível.',
+  dialogueOnComplete:{speaker:'Bento',lines:['Essas sementes são o começo de uma nova colheita.','Ainda há trilhas e um farol abandonado para investigar.']}}
 ];

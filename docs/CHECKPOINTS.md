@@ -115,3 +115,7 @@
 
 ### CP10.5b — encaixes estruturais e materiais
 - Quatro encaixes de parede por célula, uma cobertura/piso superior e um equipamento no centro. Migração automática dos módulos de saves anteriores; colisão, interação de portas, remoção por tipo/rotação e remoção de módulos após destruição da fundação ajustadas. Fundação metálica 360 HP, capacidade 160/massa 42, malha instanciada separada; acabamentos claro/escuro na madeira. Abrigo apenas sob cobertura próxima. Corrigida tipagem da textura V6. Ainda apenas dois níveis, escada por interação e sem instancing de paredes; móveis extras e iluminação interior pendentes. Testes de camadas e materiais adicionados.
+
+
+### CP10.6a — campanha do Arquipélago Verde
+- M06 Primeira terra (ancorar perto da primeira ilha e investigar nascente) e M07 Sementes do futuro (conversar com Bento e recuperar estoque agrícola) conforme GDD. Pontos determinísticos em terra, marcadores procedurais, direção/distância na bússola, interação E/Ação e estoque atômico. Progressos persistidos no motor de missões; reconciliação de saves anteriores que concluíram M05. Validador inclui novos capítulos e contratos. Dois testes. Bento é NPC fixo e a nascente é ponto narrativo, ainda sem sistema de abastecimento de água; M08–M10, S011–020 e chefe B02 continuam pendentes. Teste manual ainda necessário.
