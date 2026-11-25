@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { combine } from '../render/DetailGeometry';
+import { detailedAtDistance, wreckHull, wreckCabin, wreckRails } from './MaritimeModels';
 import { SeededRng } from '../core/SeededRng';
 import { getWaveHeight } from './Ocean';
 
@@ -35,6 +36,10 @@ export class SectorManager {
   private rng: SeededRng;
   private spawnSeq = 1;
   private spawnTimer = 0;
+  private wreckDetails: THREE.Group | null = null;
+  private readonly distantPlastic = new THREE.CylinderGeometry(.18,.22,.50,6);
+  private readonly distantCrate = new THREE.BoxGeometry(.85,.72,.85);
+  private readonly distantBarrel = new THREE.CylinderGeometry(.36,.36,.92,8);
 
   // Materiais e geometrias compartilhados para reduzir draw calls (orçamento GDD §13)
   private readonly woodGeo = new THREE.BoxGeometry(0.95, 0.14, 0.32);
@@ -74,13 +79,21 @@ export class SectorManager {
   private spawnPoiWreck(x: number, z: number): void {
     const grp = new THREE.Group();
     const hull = new THREE.Mesh(
-      new THREE.BoxGeometry(5.5, 1.4, 3.2),
+      wreckHull(),
       new THREE.MeshStandardMaterial({ color: 0x5c4b43, roughness: 0.85 })
     );
     hull.position.y = 0.2;
-    hull.rotation.z = 0.14;
+    grp.rotation.z = 0.10;
     hull.castShadow = true;
     grp.add(hull);
+
+    const details = new THREE.Group();
+    const cabin = new THREE.Mesh(wreckCabin(), new THREE.MeshStandardMaterial({color:0x9c9b86,roughness:.83}));
+    const rails = new THREE.Mesh(wreckRails(), new THREE.MeshStandardMaterial({color:0x394950,roughness:.67,metalness:.35}));
+    cabin.castShadow = true;
+    details.add(cabin,rails);
+    grp.add(details);
+    this.wreckDetails = details;
 
     const mast = new THREE.Mesh(
       new THREE.CylinderGeometry(0.12, 0.16, 4.2, 8),
@@ -117,6 +130,9 @@ export class SectorManager {
     );
     base.position.y = 0.2;
     grp.add(base);
+    const band = new THREE.Mesh(new THREE.CylinderGeometry(.91,.96,.11,12), new THREE.MeshStandardMaterial({color:0xf2e5ce,roughness:.7}));
+    band.position.y = .23;
+    grp.add(band);
 
     const tower = new THREE.Mesh(
       new THREE.CylinderGeometry(0.18, 0.42, 2.1, 8),
@@ -124,6 +140,8 @@ export class SectorManager {
     );
     tower.position.y = 1.4;
     grp.add(tower);
+    const cage = new THREE.Mesh(combine([0,1,2,3].map(i=>new THREE.CylinderGeometry(.035,.035,.43,6).translate(Math.cos(i*Math.PI/2)*.27,2.52,Math.sin(i*Math.PI/2)*.27))),new THREE.MeshStandardMaterial({color:0x49565c,roughness:.65}));
+    grp.add(cage);
 
     const light = new THREE.Mesh(
       new THREE.SphereGeometry(0.24, 10, 10),
@@ -199,7 +217,7 @@ export class SectorManager {
     });
   }
 
-  update(dt: number, raftX: number, raftZ: number, timeSec: number, stormFactor: number): void {
+  update(dt: number, raftX: number, raftZ: number, timeSec: number, stormFactor: number, viewerX = raftX, viewerZ = raftZ): void {
     // Correnteza suave traz detritos do norte (-Z) para sul (+Z)
     const currentSpeedZ = 1.25 + stormFactor * 0.6;
 
@@ -219,6 +237,12 @@ export class SectorManager {
       const waveY = getWaveHeight(f.x, f.z, timeSec, stormFactor);
       f.mesh.position.set(f.x, waveY - 0.03, f.z);
       f.mesh.rotation.y = f.rotY;
+      if (f.mesh instanceof THREE.Mesh) {
+        const distanceSq = (f.x-viewerX)**2 + (f.z-viewerZ)**2;
+        const pair = f.kind === 'plastico' ? [this.plasticGeo,this.distantPlastic] : f.kind === 'caixote' ? [this.crateGeo,this.distantCrate] : f.kind === 'barril' ? [this.barrelGeo,this.distantBarrel] : null;
+        if(pair) f.mesh.geometry = detailedAtDistance(distanceSq,f.mesh.geometry === pair[0]) ? pair[0] : pair[1];
+        f.mesh.castShadow = distanceSq < 28*28;
+      }
 
       if (Math.hypot(f.x - raftX, f.z - raftZ) > 65) {
         this.group.remove(f.mesh);
@@ -229,6 +253,9 @@ export class SectorManager {
     for (const poi of this.pois) {
       const waveY = getWaveHeight(poi.x, poi.z, timeSec, stormFactor);
       poi.mesh.position.y = waveY;
+      if (poi.id === 'destrocos_radio' && this.wreckDetails) {
+        this.wreckDetails.visible = detailedAtDistance((poi.x-viewerX)**2+(poi.z-viewerZ)**2,this.wreckDetails.visible);
+      }
       // Se o jogador navegou muito longe sem lootear, traz POI novamente para faixa alcançável (GDD §4)
       if (!poi.looted && Math.hypot(poi.x - raftX, poi.z - raftZ) > 130) {
         poi.x = raftX + (poi.id === 'destrocos_radio' ? 24 : -22);
@@ -247,6 +274,16 @@ export class SectorManager {
   }
 
   dispose(): void {
+    this.distantPlastic.dispose();
+    this.distantCrate.dispose();
+    this.distantBarrel.dispose();
+    for (const poi of this.pois) poi.mesh.traverse(object => {
+      if (object instanceof THREE.Mesh) {
+        object.geometry.dispose();
+        if (Array.isArray(object.material)) object.material.forEach(m => m.dispose());
+        else object.material.dispose();
+      }
+    });
     this.woodGeo.dispose();
     this.plasticGeo.dispose();
     this.leafGeo.dispose();

@@ -20,75 +20,89 @@ export function getWaveNormal(x: number, z: number, timeSec: number, stormFactor
   return new THREE.Vector3(hL - hR, 2 * eps, hD - hU).normalize();
 }
 
-/**
- * Malha de oceano centrada na embarcação com deslocamento de vértices e cor turquesa/azul por altura.
+/** Mesma função de onda usada na física, avaliada na GPU para a superfície. */
+export const SEA_WAVE_GLSL = `
+uniform float uSeaTime;
+uniform float uSeaStorm;
+uniform vec2 uSeaCenter;
+varying vec3 vSeaPosition;
+vec3 seaWave(vec2 p) {
+  float a = 0.22 + uSeaStorm * 0.35;
+  float x = p.x * 0.24 + uSeaTime * 1.15;
+  float z = p.y * 0.19 - uSeaTime * 0.92;
+  float d = (p.x + p.y) * 0.42 + uSeaTime * 1.75;
+  float shared = cos(d) * 0.42 * a * 0.35;
+  return vec3(sin(x)*a + cos(z)*a*0.72 + sin(d)*a*0.35,
+    cos(x)*0.24*a + shared, -sin(z)*0.19*a*0.72 + shared);
+}
+`;
+
+export function oceanSegments(lowQuality: boolean): number {
+  return lowQuality ? 64 : 112;
+}
+
+/** Superfície marítima: malha estática, movimento e normais analíticas no vertex shader.
+ * A simulação continua independente da renderização; não há textura ou render target adicional.
  */
 export class OceanRenderer {
   readonly mesh: THREE.Mesh;
   private readonly geometry: THREE.PlaneGeometry;
   private readonly material: THREE.MeshStandardMaterial;
-  private readonly basePositions: Float32Array;
-  private readonly colors: Float32Array;
-  private readonly gridSnap = 2.0;
+  private readonly time = { value: 0 };
+  private readonly storm = { value: 0 };
+  private readonly center = { value: new THREE.Vector2() };
+  private readonly gridSnap = 2;
 
   constructor(lowQuality = false) {
-    const size = 220;
-    const segments = lowQuality ? 48 : 88;
-    this.geometry = new THREE.PlaneGeometry(size, size, segments, segments);
+    const segments = oceanSegments(lowQuality);
+    this.geometry = new THREE.PlaneGeometry(220, 220, segments, segments);
     this.geometry.rotateX(-Math.PI / 2);
-
-    const posAttr = this.geometry.attributes.position as THREE.BufferAttribute;
-    this.basePositions = new Float32Array(posAttr.array.length);
-    this.basePositions.set(posAttr.array as Float32Array);
-
-    this.colors = new Float32Array(posAttr.count * 3);
-    this.geometry.setAttribute('color', new THREE.BufferAttribute(this.colors, 3));
-
     this.material = new THREE.MeshStandardMaterial({
-      vertexColors: true,
-      roughness: 0.26,
-      metalness: 0.14,
-      flatShading: lowQuality,
+      color: 0xffffff, roughness: 0.36, metalness: 0.04,
     });
-
+    this.material.onBeforeCompile = shader => {
+      shader.uniforms.uSeaTime = this.time;
+      shader.uniforms.uSeaStorm = this.storm;
+      shader.uniforms.uSeaCenter = this.center;
+      shader.vertexShader = shader.vertexShader
+        .replace('#include <common>', '#include <common>\n' + SEA_WAVE_GLSL)
+        .replace('#include <beginnormal_vertex>', `#include <beginnormal_vertex>
+          vec3 seaData = seaWave(position.xz + uSeaCenter);
+          objectNormal = normalize(vec3(-seaData.y, 1.0, -seaData.z));`)
+        .replace('#include <begin_vertex>', `#include <begin_vertex>
+          transformed.y += seaData.x;
+          vSeaPosition = vec3(position.x + uSeaCenter.x, seaData.x, position.z + uSeaCenter.y);`);
+      shader.fragmentShader = shader.fragmentShader
+        .replace('#include <common>', `#include <common>
+          uniform float uSeaTime;
+          uniform float uSeaStorm;
+          varying vec3 vSeaPosition;`)
+        .replace('#include <color_fragment>', `#include <color_fragment>
+          float amp = 0.22 + uSeaStorm * 0.35;
+          float crest = clamp(vSeaPosition.y / (amp * 2.07) * 0.5 + 0.5, 0.0, 1.0);
+          vec3 seaColor = mix(vec3(0.012,0.09,0.21), vec3(0.028,0.42,0.49), crest);
+          float detailFade = 1.0 - smoothstep(16.0, 70.0, length(vViewPosition));
+          float ripple = sin(vSeaPosition.x*2.2+vSeaPosition.z*1.8-uSeaTime*1.7);
+          float crossRipple = sin(vSeaPosition.x*0.9-vSeaPosition.z*2.4+uSeaTime*1.1);
+          float fleck = smoothstep(0.30,0.88,ripple*0.55+crossRipple*0.45);
+          float foam = smoothstep(0.80,0.97,crest) * mix(0.24,0.9,fleck) * detailFade;
+          seaColor += vec3(0.008,0.028,0.038) * ripple * detailFade;
+          diffuseColor.rgb *= mix(seaColor, vec3(0.72,0.86,0.90), foam);`);
+    };
     this.mesh = new THREE.Mesh(this.geometry, this.material);
     this.mesh.receiveShadow = true;
+    // A superfície se desloca na GPU; sua AABB em CPU permanece plana.
+    this.geometry.computeBoundingSphere();
+    if (this.geometry.boundingSphere) this.geometry.boundingSphere.radius += 2;
   }
 
   update(centerX: number, centerZ: number, timeSec: number, stormFactor: number): void {
-    const snappedX = Math.round(centerX / this.gridSnap) * this.gridSnap;
-    const snappedZ = Math.round(centerZ / this.gridSnap) * this.gridSnap;
-    this.mesh.position.set(snappedX, 0, snappedZ);
-
-    const posAttr = this.geometry.attributes.position as THREE.BufferAttribute;
-    const colorAttr = this.geometry.attributes.color as THREE.BufferAttribute;
-    const arr = posAttr.array as Float32Array;
-    const count = posAttr.count;
-
-    for (let i = 0; i < count; i++) {
-      const idx = i * 3;
-      const lx = this.basePositions[idx];
-      const lz = this.basePositions[idx + 2];
-      const wx = lx + snappedX;
-      const wz = lz + snappedZ;
-      const h = getWaveHeight(wx, wz, timeSec, stormFactor);
-      arr[idx + 1] = h;
-
-      // Interpola de azul profundo no vale para turquesa + espuma nas cristas
-      const crest = THREE.MathUtils.clamp((h + 0.35) / 0.85, 0, 1);
-      const foam = crest > 0.82 ? (crest - 0.82) * 3.8 : 0;
-      const r = THREE.MathUtils.lerp(0.03, 0.14, crest) + foam * 0.45;
-      const g = THREE.MathUtils.lerp(0.24, 0.58, crest) + foam * 0.35;
-      const b = THREE.MathUtils.lerp(0.42, 0.68, crest) + foam * 0.25;
-
-      this.colors[idx] = Math.min(1, r);
-      this.colors[idx + 1] = Math.min(1, g);
-      this.colors[idx + 2] = Math.min(1, b);
-    }
-
-    posAttr.needsUpdate = true;
-    colorAttr.needsUpdate = true;
-    this.geometry.computeVertexNormals();
+    const x = Math.round(centerX / this.gridSnap) * this.gridSnap;
+    const z = Math.round(centerZ / this.gridSnap) * this.gridSnap;
+    this.mesh.position.set(x, 0, z);
+    this.center.value.set(x,z);
+    this.time.value = timeSec;
+    this.storm.value = stormFactor;
   }
 
   dispose(): void {

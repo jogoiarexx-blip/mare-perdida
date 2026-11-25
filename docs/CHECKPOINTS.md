@@ -24,3 +24,9 @@
 - Personagem com colete, cabeça, braços e pernas animados; tubarão com silhueta curva, olhos, barbatanas e cauda animada.
 - Convés com tábuas e travessas em uma malha compartilhada; vela curvada; barris, caixotes e garrafas com detalhes geométricos agrupados.
 - Sem downloads novos de modelos ou texturas. Física, save, inventário e missões preservados. Testes de orçamento de triângulos adicionados; desempenho real e avaliação visual ainda pendentes de medição.
+
+
+### Melhoria visual 2 — oceano e cenário marítimo
+- Ondas e normais analíticas na GPU, cores e espuma procedural; atualização da CPU apenas por uniforms, sem alterar altura de onda da física. Perfis de 8.192 e 25.088 triângulos para a superfície.
+- Casco com proa curva, cabine, corrimãos e boia com faixa e proteção da luz. LOD com histerese para detritos e detalhes do destroço; sombras de detritos somente até 28 m. Sem novos assets externos.
+- Testes de orçamento e histerese adicionados. Compilação do shader no navegador, comparação de FPS e avaliação visual em dispositivos reais ainda pendentes.

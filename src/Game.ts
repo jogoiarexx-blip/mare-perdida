@@ -462,7 +462,7 @@ export class Game {
     }
 
     // Atualizar setor e redes coletoras
-    this.sector.update(dt, this.raftRenderer.x, this.raftRenderer.z, this.clock.elapsedSeconds, this.weather.stormFactor);
+    this.sector.update(dt, this.raftRenderer.x, this.raftRenderer.z, this.clock.elapsedSeconds, this.weather.stormFactor, this.player.position.x, this.player.position.z);
     this.updateCollectorNets();
     this.updateModulesTick(dt);
 
