@@ -20,6 +20,9 @@ export interface ItemDef {
 }
 
 export const ITEMS: Record<string, ItemDef> = {
+  alga_marinha:{id:'alga_marinha',name:'Alga marinha',description:'Recurso submerso para fibras.',category:'recurso',stackMax:20,icon:'🌿'},
+  minerio_marinho:{id:'minerio_marinho',name:'Minério marinho',description:'Metal encontrado no fundo do mar.',category:'recurso',stackMax:20,icon:'🪨'},
+  tanque_mergulho:{id:'tanque_mergulho',name:'Tanque de mergulho',description:'Enquanto estiver na mochila, aumenta o oxigênio de 45 para 90 segundos. Recarrega na superfície.',category:'ferramenta',stackMax:1,icon:'🤿',protectedOnDeath:true},
   madeira: {
     id: 'madeira',
     name: 'Madeira à deriva',

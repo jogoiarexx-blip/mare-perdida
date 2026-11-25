@@ -75,6 +75,8 @@ export class SurvivalSystem {
     }
   }
 
+  setOxygenCapacity(capacity:number):void {this.maxOxygen=capacity;this.oxygen=Math.min(this.oxygen,capacity);}
+
   applyDamage(amount: number): void {
     if (this.dead || amount <= 0) return;
     this.health = Math.max(0, this.health - amount);

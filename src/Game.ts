@@ -17,7 +17,9 @@ import { StructureGraph } from './raft/StructureGraph';
 import { RaftRenderer } from './raft/RaftRenderer';
 import { BuildTargetPicker, evaluateBuild, type BuildTarget } from './raft/BuildTarget';
 import { nearestGridEntry, FlotsamBuckets } from './raft/GridQueries';
-import { OceanRenderer } from './world/Ocean';
+import { OceanRenderer,getWaveHeight } from './world/Ocean';
+import { DiveWorld } from './world/DiveWorld';
+import { seabedHeight,oxygenCapacity } from './world/DiveLayout';
 import { ChunkManager } from './world/ChunkManager';
 import { biomeLabel } from './world/ChunkLayout';
 import { Discovery,helmStep,bearing,cardinal,headingDegrees,minimapSvg } from './world/Navigation';
@@ -54,6 +56,9 @@ export class Game {
   private sector!: SectorManager;
   private chunks!: ChunkManager;
   private readonly fauna=new IslandFauna();
+  private dive!:DiveWorld;
+  private readonly diveFog=new THREE.FogExp2(0x155065,.075);
+  private readonly diveSky=new THREE.Color(0x155065);
   private readonly discovery=new Discovery();
   private readonly perf=new PerformanceMonitor();
   private readonly renderOrigin=new RenderOrigin();
@@ -147,6 +152,7 @@ export class Game {
     this.chunks=new ChunkManager(this.seed,low,true);
     this.scene.add(this.chunks.group);
     this.scene.add(this.fauna.group);
+    this.dive=new DiveWorld(this.seed,low);this.scene.add(this.dive.group);
     this.chunks.update(0,0,2);
     this.sector = new SectorManager(this.seed);
     this.scene.add(this.sector.group);
@@ -381,7 +387,7 @@ export class Game {
     this.renderOrigin.reset();this.renderer.shadowMap.needsUpdate=true;
     this.seed = Math.floor(Math.random() * 900000) + 100000;
     this.chunks.reset(this.seed);
-    this.fauna.reset();
+    this.fauna.reset();this.dive.reset(this.seed,this.options.quality==='baixo');
     this.discovery.reset();this.discovery.visit(0,0);this.helmKey=null;
     this.chunks.update(0,0,9);
     this.epoch = 1;
@@ -431,7 +437,7 @@ export class Game {
     this.sharkRepelledCount = data.worldFlags.sharkRepelledCount;
     this.player.position.set(data.playerPosition.x, data.playerPosition.y, data.playerPosition.z);
     this.chunks.reset(this.seed,this.options.quality==='baixo',data.depletedIslandResources??[]);
-    this.fauna.reset(data.animalDeltas??[]);
+    this.fauna.reset(data.animalDeltas??[]);this.dive.reset(this.seed,this.options.quality==='baixo',data.depletedDiveResources??[]);
     this.discovery.reset(data.discoveredChunks??[]);this.discovery.visit(this.player.position.x,this.player.position.z);this.helmKey=null;
     this.chunks.update(this.player.position.x,this.player.position.z,2);
 
@@ -513,13 +519,16 @@ export class Game {
       raftDeltaZ,
       (x,z)=>this.chunks.groundHeight(x,z),
       (x,z,y,fromX,fromZ)=>this.chunks.blocksMovement(x,z,y,fromX,fromZ),
-      this.raftRenderer.heading-prevHeading
+      this.raftRenderer.heading-prevHeading,
+      (x,z)=>seabedHeight(x,z,this.seed)
     );
     this.yawDeltaAccum = 0;
     this.pitchDeltaAccum = 0;
 
     // Sobrevivência
     const sheltered = this.raftGrid.hasModuleKind('cobertura');
+    this.survival.setOxygenCapacity(oxygenCapacity(this.inventory.getItemCount('tanque_mergulho')>0));
+    this.dive.update(this.player.position.x,this.player.position.z,this.player.inWater);
     this.survival.update(dt, {
       sprinting: !steering && sprint && (Math.abs(forward) > 0.1 || Math.abs(strafe) > 0.1),
       underwater: this.player.underwater,
@@ -610,7 +619,10 @@ export class Game {
     else this.raftRenderer.hideGhost();
     this.ambient.update(this.camera.position.x,this.camera.position.z,this.camera.position.y,this.clock.elapsedSeconds,this.weather.stormFactor,this.options.quality==='baixo');
     if(this.renderOrigin.update(this.camera.position.x,this.camera.position.z))this.renderer.shadowMap.needsUpdate=true;
-    this.renderOrigin.render(this.scene,this.camera,()=>this.renderer.render(this.scene,this.camera));
+    const submerged=this.camera.position.y<getWaveHeight(this.camera.position.x,this.camera.position.z,this.clock.elapsedSeconds,this.weather.stormFactor)-.04;
+    const fog=this.scene.fog,sky=this.scene.background;
+    if(submerged){this.scene.fog=this.diveFog;this.scene.background=this.diveSky;}
+    try{this.renderOrigin.render(this.scene,this.camera,()=>this.renderer.render(this.scene,this.camera));}finally{this.scene.fog=fog;this.scene.background=sky;}
     if(this.hud.isPerformanceVisible()&&this.perfElapsed>=.5){
       this.perfElapsed=0;
       const s=this.perf.snapshot(),info=this.renderer.info;
@@ -795,6 +807,11 @@ export class Game {
 
   private handleInteract(): void {
     if(this.helmKey){this.helmKey=null;this.resetMenuInput();this.hud.pushToast('Leme liberado.','info');return;}
+    if(this.player.underwater){
+      const p=this.player.position,node=this.dive.nearest(p.x,p.y,p.z);
+      if(node){const trial=this.inventory.clone();for(const l of node.loot)if(trial.addItem(l.itemId,l.count).overflow){this.hud.pushToast('Mochila cheia. Recursos preservados.','warn');return;}
+        if(this.dive.collect(node.id))this.collectLoot(node.loot,'dive');return;}
+    }
     // 1. Verificar POIs próximos (destroço do rádio / boia vermelha)
     for (const poi of this.sector.pois) {
       const d = Math.hypot(poi.x - this.player.position.x, poi.z - this.player.position.z);
@@ -1206,7 +1223,7 @@ export class Game {
     this.store.saveOptions(opts);
     if(this.activeQuality!==opts.quality){
       const low=opts.quality==='baixo';
-      this.chunks.setQuality(low);
+      this.chunks.setQuality(low);this.dive.setQuality(low);
       this.chunks.update(this.player.position.x,this.player.position.z,2);
       this.scene.remove(this.ocean.mesh);this.ocean.dispose();
       this.ocean=new OceanRenderer(low);this.scene.add(this.ocean.mesh);
@@ -1257,6 +1274,7 @@ export class Game {
       depletedIslandResources:this.chunks.serializeResources(),
       discoveredChunks:this.discovery.serialize(),
       animalDeltas:this.fauna.serialize(),
+      depletedDiveResources:this.dive.serialize(),
       worldFlags: {
         wreckLooted: this.wreckLooted,
         buoyInspected: this.buoyInspected,
@@ -1314,6 +1332,7 @@ export class Game {
       const distance=Math.max(0,Math.round(Math.hypot(island.x-this.player.position.x,island.z-this.player.position.z)-island.radius));
       if(distance<100)compassText+=' · '+biomeLabel(island)+' '+distance+' m';
     }
+    if(this.player.inWater)compassText+=' · Prof. '+Math.max(0,-this.player.position.y).toFixed(1)+' m';
     const hd=headingDegrees(this.raftRenderer.heading);
     compassText+=' · Proa '+cardinal(hd)+' '+Math.round(hd)+'°';
     if(island){const b=bearing(island.x-this.player.position.x,island.z-this.player.position.z);compassText+=' · Ilha a '+cardinal(b);}
@@ -1346,6 +1365,7 @@ export class Game {
       return '[Click / F] Reforçar madeira: ' + Math.ceil(f.hp) + '/' + f.maxHp + ' → 220 HP';
     }
     if (this.buildRecipe) return '[Click] Colocar peça · [R] Girar · [X] Desmontar';
+    if(this.player.inWater){const p=this.player.position,node=this.player.underwater?this.dive.nearest(p.x,p.y,p.z):null;if(node)return '[E/Ação] '+node.label;if(this.player.underwater)return 'Mergulho: olhe e avance · Espaço/Pular sobe';}
 
     for (const poi of this.sector.pois) {
       if (!poi.looted && Math.hypot(poi.x - this.player.position.x, poi.z - this.player.position.z) <= 5.2) {

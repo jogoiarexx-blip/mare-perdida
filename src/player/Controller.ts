@@ -80,7 +80,8 @@ export class PlayerController {
     raftDeltaZ: number,
     groundHeight: (x:number,z:number)=>number|null = ()=>null,
     blocksMovement:(x:number,z:number,y:number,fromX:number,fromZ:number)=>boolean=()=>false,
-    raftHeadingDelta=0
+    raftHeadingDelta=0,
+    seaFloor:(x:number,z:number)=>number=()=>-3
   ): void {
     this.yaw -= input.yawDelta;
     this.pitch = THREE.MathUtils.clamp(this.pitch - input.pitchDelta, -1.32, 1.28);
@@ -106,7 +107,7 @@ export class PlayerController {
 
     const land=groundHeight(this.position.x,this.position.z);
     const dryLand=land!==null&&land>waveY+.03;
-    this.inWater = !cellBelow && !dryLand && this.position.y <= waveY + 0.18;
+    this.inWater = (!cellBelow||this.position.y<deckTopY-.4) && !dryLand && this.position.y <= waveY + 0.18;
     this.underwater = this.inWater && this.position.y + this.eyeHeight < waveY + 0.05;
 
     const baseSpeed = this.inWater ? 3.8 : input.sprint && canSprint ? 6.6 : 4.5;
@@ -115,12 +116,9 @@ export class PlayerController {
 
     if (this.inWater) {
       // Flutuação suave + impulso ao pular/subir para voltar à jangada
-      const targetWaterY = waveY - 0.55;
-      const buoyancy = (targetWaterY - this.position.y) * 9.5;
-      this.velocity.y = THREE.MathUtils.lerp(this.velocity.y, buoyancy, Math.min(1, dt * 6));
-      if (input.jump) {
-        this.velocity.y = 4.6;
-      }
+      const dive=Math.sin(this.pitch)*input.forward;
+      const target=input.jump?4.6:Math.abs(dive)>.22?dive*3.4:this.position.y>waveY-.55?(waveY-.55-this.position.y)*5:0;
+      this.velocity.y=THREE.MathUtils.lerp(this.velocity.y,target,Math.min(1,dt*8));
       this.grounded = false;
     } else {
       this.velocity.y -= 18.5 * dt;
@@ -145,7 +143,8 @@ export class PlayerController {
     const landAfter=groundHeight(this.position.x,this.position.z);
     const waveAfter=getWaveHeight(this.position.x,this.position.z,timeSec,stormFactor);
     const landSurface=landAfter!==null&&landAfter>waveAfter+.03?landAfter:null;
-    const floor=onFoundation?Math.max(deckTopY,landSurface??-Infinity):landSurface;
+    const canLandOnDeck=onFoundation&&this.position.y>=deckTopY-.35;
+    const floor=canLandOnDeck?Math.max(deckTopY,landSurface??-Infinity):landSurface;
     if (floor!==null && this.position.y <= floor + .18 && this.velocity.y <= .8) {
       this.position.y = floor;
       this.velocity.y = 0;
@@ -155,10 +154,10 @@ export class PlayerController {
     } else {
       this.grounded = false;this.onRaft=false;
       // Limite inferior na água para não afundar infinitamente
-      if (this.position.y < waveY - 3.0) {
-        this.position.y = waveY - 3.0;
-        this.velocity.y = Math.max(0, this.velocity.y);
-      }
+      const bottom=Math.max(seaFloor(this.position.x,this.position.z),landAfter??-Infinity)+.12;
+      if(this.position.y<bottom){this.position.y=bottom;this.velocity.y=Math.max(0,this.velocity.y);}
+      this.inWater=(!onFoundation||this.position.y<deckTopY-.35)&&landSurface===null&&this.position.y<=waveAfter+.18;
+      this.underwater=this.inWater&&this.position.y+this.eyeHeight<waveAfter+.05;
     }
 
     // Atualizar avatar em 3ª pessoa

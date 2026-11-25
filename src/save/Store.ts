@@ -1,3 +1,4 @@
+import { validDiveId } from '../world/DiveLayout';
 import { validAnimalDelta,type AnimalDelta } from '../ai/IslandFauna';
 import { validDiscoveredChunk } from '../world/Navigation';
 import { validResourceId } from '../world/IslandResources';
@@ -37,6 +38,7 @@ export interface WorldSaveData {
   depletedIslandResources?: string[];
   discoveredChunks?:string[];
   animalDeltas?:AnimalDelta[];
+  depletedDiveResources?:string[];
   worldFlags: {
     wreckLooted: boolean;
     buoyInspected: boolean;
@@ -106,7 +108,8 @@ export function validateSaveData(raw: unknown): raw is WorldSaveData {
     Boolean(obj.quests) &&
     (obj.depletedIslandResources===undefined || (Array.isArray(obj.depletedIslandResources) && obj.depletedIslandResources.every(validResourceId))) &&
     (obj.discoveredChunks===undefined||(Array.isArray(obj.discoveredChunks)&&obj.discoveredChunks.every(validDiscoveredChunk))) &&
-    (obj.animalDeltas===undefined||(Array.isArray(obj.animalDeltas)&&obj.animalDeltas.every(validAnimalDelta)))
+    (obj.animalDeltas===undefined||(Array.isArray(obj.animalDeltas)&&obj.animalDeltas.every(validAnimalDelta))) &&
+    (obj.depletedDiveResources===undefined||(Array.isArray(obj.depletedDiveResources)&&obj.depletedDiveResources.every(validDiveId)))
   );
 }
 

@@ -91,3 +91,7 @@
 
 ### CP10.1 — fauna terrestre
 - Dois caranguejos e um javali determinísticos por ilha; somente uma ilha ativa, patrulha/perseguição/preparação/recuperação/retorno, ataque com aviso e alcance, colisão básica com recursos. Lança com intervalo de 0,55 s contra fauna, corpo ocultado após 5 s e bolsa de carne persistente; mochila cheia mantém loot, save antigo compatível. Carne crua e assada, receita e interação na churrasqueira. Monitor F3 mostra fauna ativa. Testes de IA, orçamento, persistência e receita; verificação visual, FPS e campanha subsequente pendentes.
+
+
+### CP10.2 — exploração submarina inicial
+- Mergulho pela direção da câmera, subida por pulo, fundo procedural (~5–9 m), neblina subaquática, corais instanciados, algas/minério/destroços abertos coletáveis. Streaming de tiles de 64 m (até 9), geração incremental e descarte por distância. Tanque fabricável aumenta capacidade 45→90 s, recarga na superfície; coleta atômica e IDs persistentes nos saves. Testes adicionados. Predadores adicionais, interiores de destroços e missões pendentes; validação manual mobile e shader ainda necessária.

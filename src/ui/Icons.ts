@@ -4,6 +4,9 @@ const GLYPHS: Record<string, readonly [string,string]> = {
   "leme": ["#b8d4de","<circle cx=\"12\" cy=\"12\" r=\"8\"/><circle cx=\"12\" cy=\"12\" r=\"2\"/><path d=\"M12 1v9m0 4v9M1 12h9m4 0h9M4 4l6 6m4 4 6 6M4 20l6-6m4-4 6-6\"/>"],
   "carne_crua":["#c87478","<path d=\"M4 17Q0 8 10 4q8-4 12 5 3 8-6 12Q8 24 4 17Z\"/><path d=\"M8 15q-3-4 2-7t7 3-4 6Z\"/>"],
   "carne_assada":["#c39861","<path d=\"M3 16Q1 6 10 4t10 7q1 7-7 9t-10-4Z\"/><path d=\"m7 8 8 8m-4-10 7 7m-12-1 6 6\"/>"],
+  "alga_marinha":["#69b798","<path d=\"M12 22V4m0 10Q2 14 3 3q9 2 9 11m0 3q10 0 9-11-9 2-9 11\"/>"],
+  "minerio_marinho":["#8faabb","<path d=\"m2 14 5-10 10-1 5 9-6 9H7Zm5-10 5 10 5-11M2 14h10l4 7m-4-7 10-2\"/>"],
+  "tanque_mergulho":["#81b5c5","<rect x=\"6\" y=\"5\" width=\"12\" height=\"17\" rx=\"5\"/><path d=\"M10 5V2h4v3m4 5h3v7m-15-4h12\"/>"],
   "madeira": [
     "#ce935c",
     "<path d=\"M3 8 16 3l5 5v10L8 22l-5-5Z\"/><path d=\"m3 8 5 5 13-5M8 13v9m3-10 7-3m-7 7 7-3\"/>"

@@ -34,6 +34,8 @@ export interface RecipeDef {
 }
 
 export const RECIPES: RecipeDef[] = [
+  {id:'rec_tanque_mergulho',name:'Tanque de mergulho',description:'Aumenta a capacidade de oxigênio para 90 segundos.',bench:'manual',ingredients:[{itemId:'plastico',count:5},{itemId:'sucata',count:4},{itemId:'minerio_marinho',count:2}],outputItemId:'tanque_mergulho',outputCount:1},
+  {id:'rec_fibra_alga',name:'Fibra de algas',description:'Transforma algas em fibra.',bench:'manual',ingredients:[{itemId:'alga_marinha',count:2}],outputItemId:'fibra',outputCount:2},
   {
     id: 'rec_corda',
     name: 'Corda resistente',
