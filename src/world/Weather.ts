@@ -11,11 +11,14 @@ export class WeatherSystem {
   weather: WeatherKind = 'limpo';
   stormFactor = 0;
 
-  private readonly daySky = new THREE.Color(0x7cc7e8);
-  private readonly duskSky = new THREE.Color(0xe68b55);
-  private readonly nightSky = new THREE.Color(0x0b1c33);
-  private readonly rainSky = new THREE.Color(0x4e6478);
-  private readonly currentSky = new THREE.Color(0x7cc7e8);
+  private readonly daySky = new THREE.Color(0x91c9e5);
+  private readonly duskSky = new THREE.Color(0xf2a76c);
+  private readonly nightSky = new THREE.Color(0x102139);
+  private readonly rainSky = new THREE.Color(0x617483);
+  private readonly warmSun = new THREE.Color(0xffb176);
+  private readonly daySun = new THREE.Color(0xfff3db);
+  private readonly moonSun = new THREE.Color(0x91b9eb);
+  private readonly currentSky = new THREE.Color(0x91c9e5);
 
   constructor(private readonly scene: THREE.Scene, highQuality = true) {
     this.hemiLight = new THREE.HemisphereLight(0xbbe9ff, 0x16425b, 0.75);
@@ -69,9 +72,10 @@ export class WeatherSystem {
     this.scene.background = this.currentSky;
     if (this.scene.fog instanceof THREE.FogExp2) {
       this.scene.fog.color.copy(this.currentSky);
-      this.scene.fog.density = this.weather === 'neblina' ? 0.018 : 0.007 + this.stormFactor * 0.006;
+      this.scene.fog.density = this.weather === 'neblina' ? 0.018 : 0.010 + this.stormFactor * 0.007;
     }
 
+    this.sunLight.color.copy(this.moonSun).lerp(this.daySun, dayAmount).lerp(this.warmSun, duskAmount * 0.68);
     this.sunLight.intensity = THREE.MathUtils.lerp(0.28, 1.55, dayAmount) * (1 - this.stormFactor * 0.35);
     this.hemiLight.intensity = THREE.MathUtils.lerp(0.38, 0.82, dayAmount);
   }
