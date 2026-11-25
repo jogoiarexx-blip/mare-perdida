@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { StructureKind } from '../data/recipes';
-import { RaftGrid } from './Grid';
+import { RaftGrid,moduleKey } from './Grid';
 import {adjacentUpper} from './Architecture';
 
 export interface BuildTarget { gx:number; gz:number; valid:boolean; reason:string; }
@@ -31,7 +31,7 @@ export class BuildTargetPicker {
   }
 }
 
-export function evaluateBuild(grid:RaftGrid,kind:StructureKind,gx:number,gz:number,hasMaterials:boolean):BuildTarget {
+export function evaluateBuild(grid:RaftGrid,kind:StructureKind,gx:number,gz:number,hasMaterials:boolean,rotation=0):BuildTarget {
   const cell=grid.getFoundation(gx,gz);
   let reason='';
   if(kind==='fundacao'){
@@ -40,7 +40,12 @@ export function evaluateBuild(grid:RaftGrid,kind:StructureKind,gx:number,gz:numb
     else if(grid.foundations.size>0&&!grid.hasAdjacentFoundation(gx,gz)) reason='Conecte a peça à jangada.';
   } else if(!cell) reason='Precisa de uma fundação de madeira.';
   else if(kind==='borda_reforcada'&&cell.reinforced) reason='Esta fundação já está reforçada.';
-  else if(kind!=='borda_reforcada'&&grid.getModuleAt(gx,gz)) reason='Já existe um equipamento neste espaço.';
+  else if(kind==='fundacao_metal'){if(cell.material==='metal')reason='Já é metálica.';}
+  else if(kind==='piso_claro'||kind==='piso_escuro'){
+    if(cell.material==='metal')reason='Acabamento apenas em madeira.';
+    else if(cell.finish===(kind==='piso_claro'?'light':'dark'))reason='Este acabamento já está instalado.';
+  }
+  else if(kind!=='borda_reforcada'&&grid.modules.has(moduleKey(kind,gx,gz,rotation)))reason='Encaixe ocupado nesta posição.';
   if(!reason&&kind==='escada'&&[[1,0],[-1,0],[0,1],[0,-1]].every(([dx,dz])=>grid.getFoundation(gx+dx,gz+dz)))reason='Instale a escada numa borda da jangada.';
   if(!reason&&kind==='escada_interna'&&!adjacentUpper(grid,gx,gz))reason='Construa primeiro um piso superior na célula vizinha.';
   if(!reason&&!hasMaterials) reason='Materiais insuficientes.';

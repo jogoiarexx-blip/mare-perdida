@@ -111,3 +111,7 @@
 
 ### CP10.5a — cabines e piso elevado
 - Sete peças construíveis: parede, porta interativa, janela, corrimão, piso superior com pilares, escada interna (E/Ação sobe/desce para plataforma adjacente) e telhado. Colisão horizontal de painéis orientados, piso superior a 2,61 m da origem da jangada, proteção básica contra atravessar plataforma ao pular, desmontagem da peça sem remover fundação. Modelos combinados e templates compartilhados. Mantido limite de um módulo por fundação, sem equipamentos no segundo andar; escada por interação, não subida contínua; fundação metálica e instancing de cabines ficam para CP10.5b. Corrigido teste de orçamento de copa após arte V5 (12 tris distante, 96 perto); três novos testes de arquitetura. Validação real de colisões/câmera e FPS pendente.
+
+
+### CP10.5b — encaixes estruturais e materiais
+- Quatro encaixes de parede por célula, uma cobertura/piso superior e um equipamento no centro. Migração automática dos módulos de saves anteriores; colisão, interação de portas, remoção por tipo/rotação e remoção de módulos após destruição da fundação ajustadas. Fundação metálica 360 HP, capacidade 160/massa 42, malha instanciada separada; acabamentos claro/escuro na madeira. Abrigo apenas sob cobertura próxima. Corrigida tipagem da textura V6. Ainda apenas dois níveis, escada por interação e sem instancing de paredes; móveis extras e iluminação interior pendentes. Testes de camadas e materiais adicionados.

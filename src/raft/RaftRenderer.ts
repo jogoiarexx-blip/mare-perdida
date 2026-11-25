@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { plankDeck, reinforcedDeckFrame, combine, weatheredWoodTexture } from '../render/DetailGeometry';
 import { collectionNet, plantGeometry, grillGeometry, radioFace, roofGeometry, chestHardware, anchorWinch, purifierBands } from '../render/EquipmentGeometry';
-import { cellKey, RaftGrid, type PlacedModule } from './Grid';
+import { cellKey, moduleKey, RaftGrid, type PlacedModule } from './Grid';
 import { getWaveHeight, getWaveNormal } from '../world/Ocean';
 import type { StructureKind } from '../data/recipes';
 import {isArchitecture} from './Architecture';
@@ -17,6 +17,9 @@ export class RaftRenderer {
 
   private deckBatch!: THREE.InstancedMesh;
   private trimBatch!: THREE.InstancedMesh;
+  private metalBatch!:THREE.InstancedMesh;
+  private readonly metalGeo=combine([new THREE.BoxGeometry(.96,.20,.96),...[-.32,0,.32].map(x=>new THREE.BoxGeometry(.025,.025,.91).translate(x,.108,0))]);
+  private readonly metalMat=new THREE.MeshStandardMaterial({color:0x82949d,metalness:.65,roughness:.5});
   private batchCapacity = 0;
   private foundationSignature = '';
   private readonly instanceMatrix = new THREE.Matrix4();
@@ -57,8 +60,8 @@ export class RaftRenderer {
   private ensureFoundationBatches(required: number): void {
     if (this.batchCapacity >= required && this.batchCapacity > 0) return;
     if (this.batchCapacity) {
-      this.root.remove(this.deckBatch,this.trimBatch);
-      this.deckBatch.dispose(); this.trimBatch.dispose();
+      this.root.remove(this.deckBatch,this.trimBatch,this.metalBatch);
+      this.deckBatch.dispose(); this.trimBatch.dispose();this.metalBatch.dispose();
     }
     this.batchCapacity=Math.max(16,Math.ceil(required/16)*16);
     this.deckBatch=new THREE.InstancedMesh(this.deckGeo,this.plankMat,this.batchCapacity);
@@ -71,7 +74,8 @@ export class RaftRenderer {
     this.trimBatch.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     this.trimBatch.receiveShadow=true; this.trimBatch.castShadow=false;
     this.trimBatch.count=0;
-    this.root.add(this.deckBatch,this.trimBatch);
+    this.metalBatch=new THREE.InstancedMesh(this.metalGeo,this.metalMat,this.batchCapacity);this.metalBatch.name='foundation-metal';this.metalBatch.castShadow=true;this.metalBatch.receiveShadow=true;this.metalBatch.count=0;
+    this.root.add(this.deckBatch,this.trimBatch,this.metalBatch);
     this.foundationSignature='';
   }
 
@@ -79,23 +83,24 @@ export class RaftRenderer {
     this.ensureFoundationBatches(grid.foundations.size);
     let signature='';
     for(const [key,cell] of grid.foundations) {
-      signature+=key+':'+Number(Boolean(cell.isCore))+Number(cell.reinforced)+Number(cell.hp<cell.maxHp*.55)+';';
+      signature+=key+':'+Number(Boolean(cell.isCore))+Number(cell.reinforced)+Number(cell.hp<cell.maxHp*.55)+':'+cell.material+':'+cell.finish+';';
     }
     if(signature===this.foundationSignature) return;
     this.foundationSignature=signature;
-    let deck=0,trim=0;
+    let deck=0,trim=0,metal=0;
     for(const cell of grid.foundations.values()) {
       const x=cell.gx*RaftGrid.CELL_SIZE,z=cell.gz*RaftGrid.CELL_SIZE;
       this.instanceMatrix.makeTranslation(x,.08,z);
+      if(cell.material==='metal'){this.metalBatch.setMatrixAt(metal++,this.instanceMatrix);continue;}
       this.deckBatch.setMatrixAt(deck,this.instanceMatrix);
-      const color=cell.hp<cell.maxHp*.55?0x6e3b2e:cell.isCore?0xb68249:cell.reinforced?0x725039:0x9c6b3b;
+      const color=cell.hp<cell.maxHp*.55?0x6e3b2e:cell.finish==='light'?0xd6b184:cell.finish==='dark'?0x503a2b:cell.isCore?0xb68249:cell.reinforced?0x725039:0x9c6b3b;
       this.deckBatch.setColorAt(deck++,this.instanceColor.setHex(color));
       if(cell.reinforced){
         this.instanceMatrix.makeTranslation(x,0,z);
         this.trimBatch.setMatrixAt(trim++,this.instanceMatrix);
       }
     }
-    this.deckBatch.count=deck; this.trimBatch.count=trim;
+    this.deckBatch.count=deck; this.trimBatch.count=trim;this.metalBatch.count=metal;this.metalBatch.visible=metal>0;this.metalBatch.instanceMatrix.needsUpdate=true;this.metalBatch.computeBoundingSphere();
     this.deckBatch.visible=deck>0; this.trimBatch.visible=trim>0;
     this.deckBatch.instanceMatrix.needsUpdate=true;
     if(this.deckBatch.instanceColor) this.deckBatch.instanceColor.needsUpdate=true;
@@ -349,7 +354,7 @@ export class RaftRenderer {
   }
 
   syncDynamicModule(mod: PlacedModule): void {
-    const grp=this.moduleMeshes.get(cellKey(mod.gx,mod.gz));
+    const grp=this.moduleMeshes.get(moduleKey(mod.kind,mod.gx,mod.gz,mod.rotation));
     if(grp)this.updateModuleVisual(grp,mod);
   }
 
@@ -370,7 +375,7 @@ export class RaftRenderer {
   showGhost(gx: number, gz: number, kind: StructureKind, valid: boolean, rotation: number): void {
     this.ghostMesh.visible = true;
     this.ghostMesh.material = valid ? this.ghostValidMat : this.ghostInvalidMat;
-    const isFoundation = kind === 'fundacao' || kind === 'borda_reforcada';
+    const isFoundation = ['fundacao','borda_reforcada','fundacao_metal','piso_claro','piso_escuro'].includes(kind);
     this.ghostMesh.geometry = kind === 'borda_reforcada' ? this.trimGeo : ['parede','janela','porta','corrimao'].includes(kind)?this.ghostWallGeo:['piso_superior','telhado'].includes(kind)?this.ghostFloorGeo:this.ghostBoxGeo;
     this.ghostMesh.position.set(gx * RaftGrid.CELL_SIZE, kind === 'borda_reforcada' ? 0.025 : isFoundation ? 0.1 : isArchitecture(kind)?.2:0.42, gz * RaftGrid.CELL_SIZE);
     this.ghostMesh.rotation.y = (rotation * Math.PI) / 2;
@@ -427,7 +432,7 @@ export class RaftRenderer {
     this.trimGeo.dispose();
     this.plankMat.dispose();
     this.woodTexture.dispose();
-    if(this.batchCapacity){ this.deckBatch.dispose(); this.trimBatch.dispose(); }
+    if(this.batchCapacity){ this.deckBatch.dispose(); this.trimBatch.dispose();this.metalBatch.dispose(); }this.metalGeo.dispose();this.metalMat.dispose();
     this.reinforcedMat.dispose();
     this.ghostValidMat.dispose();
     this.ghostInvalidMat.dispose();

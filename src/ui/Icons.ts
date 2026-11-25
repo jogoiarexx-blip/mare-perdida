@@ -25,6 +25,9 @@ const GLYPHS: Record<string, readonly [string,string]> = {
   "piso_superior":["#c99b63","<path d=\"M2 5 12 1l10 4-10 4Zm0 0v4l10 4 10-4V5M4 10v12m16-12v12\"/>"],
   "escada_interna":["#c99b63","<path d=\"M5 2v20M19 2v20M5 5h14M5 10h14M5 15h14M5 20h14\"/>"],
   "telhado":["#c99b63","<path d=\"m2 12 10-10 10 10M5 10v12m14-12v12M2 12h20\"/>"],
+  "fundacao_metal":["#92a7b4","<rect x=\"2\" y=\"3\" width=\"20\" height=\"18\" rx=\"2\"/><path d=\"M8 3v18M16 3v18M2 8h20M2 16h20\"/>"],
+  "piso_claro":["#d6b184","<rect x=\"2\" y=\"3\" width=\"20\" height=\"18\"/><path d=\"M8 3v18m8-18v18\"/>"],
+  "piso_escuro":["#8e694d","<rect x=\"2\" y=\"3\" width=\"20\" height=\"18\"/><path d=\"M8 3v18m8-18v18\"/>"],
   "madeira": [
     "#ce935c",
     "<path d=\"M3 8 16 3l5 5v10L8 22l-5-5Z\"/><path d=\"m3 8 5 5 13-5M8 13v9m3-10 7-3m-7 7 7-3\"/>"

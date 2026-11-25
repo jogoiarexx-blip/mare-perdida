@@ -13,8 +13,8 @@ import { SurvivalSystem, type Difficulty } from './player/Survival';
 import { PlayerController } from './player/Controller';
 import { HeldTools } from './player/HeldTools';
 import { HookController } from './player/HookAndTools';
-import { cellKey, RaftGrid } from './raft/Grid';
-import {isArchitecture,nearbyStair,adjacentUpper,UPPER_Y} from './raft/Architecture';
+import { cellKey, moduleKey, RaftGrid } from './raft/Grid';
+import {isArchitecture,nearbyStair,adjacentUpper,nearDoor,UPPER_Y} from './raft/Architecture';
 import { StructureGraph } from './raft/StructureGraph';
 import { RaftRenderer } from './raft/RaftRenderer';
 import { BuildTargetPicker, evaluateBuild, type BuildTarget } from './raft/BuildTarget';
@@ -561,7 +561,8 @@ export class Game {
     this.pitchDeltaAccum = 0;
 
     // Sobrevivência
-    const sheltered = this.raftGrid.hasModuleKind('cobertura')||this.raftGrid.hasModuleKind('telhado');
+    const shelterCell=this.raftRenderer.worldToLocalGrid(this.player.position.x,this.player.position.z);
+    const sheltered=!this.player.inWater&&this.player.position.y<this.raftRenderer.root.position.y+2.2&&this.raftGrid.modulesAt(shelterCell.gx,shelterCell.gz).some(m=>['cobertura','telhado','piso_superior'].includes(m.kind));
     this.survival.setOxygenCapacity(oxygenCapacity(this.inventory.getItemCount('tanque_mergulho')>0));
     this.dive.update(this.player.position.x,this.player.position.z,this.player.inWater);
     this.predators.update(dt,this.player.position,this.player.underwater&&!this.survival.dead,this.seed,this.options.quality==='baixo',(damage,name)=>{this.survival.applyDamage(damage*(this.survival.difficulty==='dificil'?1.3:this.survival.difficulty==='historia'?.55:1));this.hud.pushToast(name+' atacou!','danger');},(x,z)=>this.chunks.groundHeight(x,z));
@@ -751,7 +752,7 @@ export class Game {
       this.raftRenderer.hideGhost();
       return;
     }
-    const target=evaluateBuild(this.raftGrid,recipe.placesStructure,cell.gx,cell.gz,this.inventory.hasItems(recipe.ingredients));
+    const target=evaluateBuild(this.raftGrid,recipe.placesStructure,cell.gx,cell.gz,this.inventory.hasItems(recipe.ingredients),this.buildRotation);
     this.ghostTarget=target;
     this.raftRenderer.showGhost(target.gx,target.gz,recipe.placesStructure,target.valid,this.buildRotation);
   }
@@ -861,6 +862,7 @@ export class Game {
   private handleInteract(): void {
     if(this.helmKey||this.rowing){this.helmKey=null;this.rowing=false;this.resetMenuInput();this.hud.pushToast('Navegação liberada.','info');return;}
     if(this.tryBoardRaft())return;
+    const door=this.getNearbyDoor();if(door){door.active=!door.active;this.raftRenderer.syncDynamicModule(door);this.hud.pushToast(door.active?'Porta aberta.':'Porta fechada.','info');return;}
     if(this.useStair())return;
     if(this.player.underwater){
       const p=this.player.position,node=this.dive.nearest(p.x,p.y,p.z);
@@ -1074,7 +1076,7 @@ export class Game {
     const recipe = this.buildRecipe;
     const target = this.ghostTarget;
     if (!recipe || !target || !recipe.placesStructure) return;
-    const checked = evaluateBuild(this.raftGrid,recipe.placesStructure,target.gx,target.gz,this.inventory.hasItems(recipe.ingredients));
+    const checked = evaluateBuild(this.raftGrid,recipe.placesStructure,target.gx,target.gz,this.inventory.hasItems(recipe.ingredients),this.buildRotation);
     if (!checked.valid) {
       this.hud.pushToast(checked.reason, 'warn');
       return;
@@ -1089,6 +1091,10 @@ export class Game {
     } else if (kind === 'borda_reforcada') {
       const res = this.raftGrid.reinforceFoundation(target.gx, target.gz);
       placedOk = res.ok;
+    } else if(kind==='fundacao_metal'){
+      placedOk=this.raftGrid.upgradeMetal(target.gx,target.gz).ok;
+    } else if(kind==='piso_claro'||kind==='piso_escuro'){
+      placedOk=this.raftGrid.setFinish(target.gx,target.gz,kind==='piso_claro'?'light':'dark').ok;
     } else {
       const res = this.raftGrid.placeModule(kind, target.gx, target.gz, this.buildRotation, recipe.structureMass ?? 20);
       placedOk = res.ok;
@@ -1113,10 +1119,13 @@ export class Game {
     this.updateBuildGhost();
     if (!this.ghostTarget) return;
     const { gx, gz } = this.ghostTarget;
-    const mod=this.raftGrid.getModuleAt(gx,gz);
-    if(mod&&isArchitecture(mod.kind)){
-      this.raftGrid.modules.delete(cellKey(gx,gz));this.inventory.addItem('madeira',1);this.raftRenderer.syncWithGrid(this.raftGrid);this.updateBuildGhost();this.hud.pushToast('Peça de cabine desmontada.','info');return;
+    const kind=this.buildRecipe?.placesStructure;
+    const mod=kind&&isArchitecture(kind)?this.raftGrid.modulesAt(gx,gz).find(m=>m.kind===kind&&(!['parede','porta','janela','corrimao'].includes(kind)||m.rotation===this.buildRotation)):undefined;
+    if(mod){
+      this.raftGrid.modules.delete(moduleKey(mod.kind,gx,gz,mod.rotation));this.inventory.addItem('madeira',1);this.raftRenderer.syncWithGrid(this.raftGrid);this.updateBuildGhost();this.hud.pushToast('Peça de cabine desmontada.','info');return;
     }
+    if(kind&&kind!=='fundacao'&&kind!=='borda_reforcada'){this.hud.pushToast('Selecione a peça correspondente para desmontar.','warn');return;}
+    if(this.raftGrid.modulesAt(gx,gz).length){this.hud.pushToast('Desmonte os módulos antes de remover a fundação.','warn');return;}
     const res = StructureGraph.removeFoundation(this.raftGrid, gx, gz, false);
     if (!res.ok) {
       this.hud.pushToast(res.reason ?? 'Não foi possível desmontar.', 'warn');
@@ -1153,6 +1162,7 @@ export class Game {
     this.hud.pushToast(msg, 'warn');
   }
 
+  private getNearbyDoor(){if(!this.isOnDeck())return null;const p=this.player.position,l=this.raftRenderer.worldToLocalXZ(p.x,p.z,this.localQuery);return nearDoor(this.raftGrid,l.x,l.y);}
   private useStair():boolean{
     if(this.player.inWater)return false;
     const p=this.player.position,local=this.raftRenderer.worldToLocalXZ(p.x,p.z,this.localQuery);
@@ -1229,7 +1239,7 @@ export class Game {
 
   private findNearestModule(maxDist: number) {
     const p=this.raftRenderer.worldToLocalXZ(this.player.position.x,this.player.position.z,this.localQuery);
-    return nearestGridEntry(this.raftGrid.modules,p.x,p.y,maxDist);
+    return nearestGridEntry(this.raftGrid.modules,p.x,p.y,maxDist,m=>!isArchitecture(m.kind));
   }
 
   private findNearestDamagedFoundation(maxDist: number) {
@@ -1507,6 +1517,7 @@ export class Game {
   private computePromptText(): string {
     if(this.rowing||this.helmKey)return this.raftGrid.isAnchorDropped()?'Âncora baixada — [H] recolher · [E/Ação] sair':(this.rowing?'Remo':this.raftGrid.modules.get(this.helmKey??'')?.kind==='motor'?'Motor':'Leme')+' · W/S avançar/recuar · A/D virar · [E/Ação] sair';
     if(this.canBoardRaft())return '[E/Ação] Subir na jangada';
+    const door=this.getNearbyDoor();if(door)return door.active?'[E/Ação] Fechar porta':'[E/Ação] Abrir porta';
     if(!this.player.inWater){const p=this.player.position,local=this.raftRenderer.worldToLocalXZ(p.x,p.z,this.localQuery);if(nearbyStair(this.raftGrid,local.x,local.y))return p.y-this.raftRenderer.root.position.y>UPPER_Y-.5?'[E/Ação] Descer ao convés':'[E/Ação] Subir ao segundo andar';}
     if (this.buildRecipe && !this.ghostTarget) return 'Aponte para o convés ou uma borda próxima (até 5,5 m).';
     if (this.buildRecipe && this.ghostTarget && !this.ghostTarget.valid) return this.ghostTarget.reason;

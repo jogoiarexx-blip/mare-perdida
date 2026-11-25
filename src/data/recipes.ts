@@ -8,6 +8,9 @@ export type BenchType = 'manual' | 'purificador' | 'churrasqueira' | 'construcao
 export type StructureKind =
   | 'fundacao'
   | 'borda_reforcada'
+  | 'fundacao_metal'
+  | 'piso_claro'
+  | 'piso_escuro'
   | 'purificador'
   | 'churrasqueira'
   | 'cama'
@@ -46,6 +49,9 @@ export interface RecipeDef {
 }
 
 export const RECIPES: RecipeDef[] = [
+  {id:'build_fundacao_metal',name:'Fundação metálica',description:'Melhore uma fundação existente para 360 HP e maior capacidade de carga.',bench:'construcao',ingredients:[{itemId:'minerio_marinho',count:4},{itemId:'sucata',count:4}],placesStructure:'fundacao_metal'},
+  {id:'build_piso_claro',name:'Piso de madeira clara',description:'Acabamento de madeira clara para uma fundação de madeira.',bench:'construcao',ingredients:[{itemId:'madeira',count:1}],placesStructure:'piso_claro'},
+  {id:'build_piso_escuro',name:'Piso de madeira escura',description:'Acabamento escuro para uma fundação de madeira.',bench:'construcao',ingredients:[{itemId:'madeira',count:1}],placesStructure:'piso_escuro'},
   {id:'build_parede',name:'Parede de madeira',description:'Painel de cabine com colisão. R gira a peça.',bench:'construcao',ingredients:[{itemId:'madeira',count:3}],placesStructure:'parede',structureMass:12},
   {id:'build_porta',name:'Porta de cabine',description:'Abre e fecha com E/Ação. R define o lado.',bench:'construcao',ingredients:[{itemId:'madeira',count:4},{itemId:'sucata',count:1}],placesStructure:'porta',structureMass:14},
   {id:'build_janela',name:'Parede com janela',description:'Abertura para iluminação e visão.',bench:'construcao',ingredients:[{itemId:'madeira',count:3},{itemId:'plastico',count:1}],placesStructure:'janela',structureMass:12},

@@ -6,12 +6,14 @@ export interface FoundationCell {
   hp: number;
   maxHp: number;
   reinforced: boolean;
+  material?:'wood'|'metal';
+  finish?:'natural'|'light'|'dark';
   isCore?: boolean;
 }
 
 export interface PlacedModule {
   id: string;
-  kind: Exclude<StructureKind, 'fundacao' | 'borda_reforcada'>;
+  kind: Exclude<StructureKind, 'fundacao' | 'borda_reforcada'|'fundacao_metal'|'piso_claro'|'piso_escuro'>;
   gx: number;
   gz: number;
   rotation: number; // 0, 1, 2, 3 -> 0°, 90°, 180°, 270°
@@ -37,6 +39,15 @@ export function cellKey(gx: number, gz: number): string {
   return `${gx},${gz}`;
 }
 
+export function moduleKey(kind:PlacedModule['kind'],gx:number,gz:number,rotation=0):string{
+ const key=cellKey(gx,gz);
+ if(['parede','porta','janela','corrimao'].includes(kind))return key+':wall:'+((rotation%4+4)%4);
+ if(kind==='piso_superior'||kind==='telhado')return key+':roof';
+ return key;
+}
+export function moduleKeysAt(gx:number,gz:number):string[]{
+ const k=cellKey(gx,gz);return [k,k+':roof',k+':wall:0',k+':wall:1',k+':wall:2',k+':wall:3'];
+}
 /**
  * Grade naval de 1m da jangada. Mantém fundações e módulos colocados sobre elas.
  */
@@ -80,9 +91,21 @@ export class RaftGrid {
   }
 
   getModuleAt(gx: number, gz: number): PlacedModule | undefined {
-    return this.modules.get(cellKey(gx, gz));
+    return this.modulesAt(gx,gz)[0];
   }
 
+  modulesAt(gx:number,gz:number):PlacedModule[]{
+    const out:PlacedModule[]=[];for(const k of moduleKeysAt(gx,gz)){const m=this.modules.get(k);if(m)out.push(m);}return out;
+  }
+  removeModulesAt(gx:number,gz:number):void{for(const k of moduleKeysAt(gx,gz))this.modules.delete(k);}
+  upgradeMetal(gx:number,gz:number):{ok:boolean;reason?:string}{
+    const f=this.getFoundation(gx,gz);if(!f||f.material==='metal')return {ok:false,reason:'Requer fundação de madeira.'};
+    f.material='metal';f.reinforced=true;f.maxHp=360;f.hp=360;return {ok:true};
+  }
+  setFinish(gx:number,gz:number,finish:'light'|'dark'):{ok:boolean}{
+    const f=this.getFoundation(gx,gz);if(!f||f.material==='metal'||f.finish===finish)return {ok:false};
+    f.finish=finish;return {ok:true};
+  }
   hasAdjacentFoundation(gx: number, gz: number): boolean {
     const dirs = [
       [1, 0],
@@ -147,8 +170,8 @@ export class RaftGrid {
     rotation: number,
     mass = 20
   ): { ok: boolean; module?: PlacedModule; reason?: string } {
-    const key = cellKey(gx, gz);
-    if (!this.foundations.has(key)) {
+    const key = moduleKey(kind,gx,gz,rotation);
+    if (!this.foundations.has(cellKey(gx,gz))) {
       return { ok: false, reason: 'Módulos exigem uma fundação abaixo.' };
     }
     if (this.modules.has(key)) {
@@ -227,7 +250,7 @@ export class RaftGrid {
     }
     let maxSeq = 1;
     for (const m of data.modules) {
-      this.modules.set(cellKey(m.gx, m.gz), { ...m });
+      if(this.getFoundation(m.gx,m.gz))this.modules.set(moduleKey(m.kind,m.gx,m.gz,m.rotation), { ...m });
       const parsed = Number(m.id.replace('mod_', ''));
       if (!Number.isNaN(parsed)) maxSeq = Math.max(maxSeq, parsed + 1);
     }

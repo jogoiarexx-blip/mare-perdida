@@ -16,23 +16,30 @@ export function wallOverlap(m:PlacedModule,x:number,z:number,y:number,r=.23):boo
 export function architectureBlocks(grid:RaftGrid,x:number,z:number,y:number,fx:number,fz:number):boolean{
  const gx=Math.round(x),gz=Math.round(z);
  for(let dz=-1;dz<=1;dz++)for(let dx=-1;dx<=1;dx++){
-  const m=grid.getModuleAt(gx+dx,gz+dz);
-  if(m&&wallOverlap(m,x,z,y)&&!wallOverlap(m,fx,fz,y))return true;
+  for(const m of grid.modulesAt(gx+dx,gz+dz))if(wallOverlap(m,x,z,y)&&!wallOverlap(m,fx,fz,y))return true;
  }
  return false;
 }
 export function upperFloor(grid:RaftGrid,gx:number,gz:number):number|null{
- return grid.getModuleAt(gx,gz)?.kind==='piso_superior'?UPPER_Y:null;
+ return grid.modulesAt(gx,gz).some(m=>m.kind==='piso_superior')?UPPER_Y:null;
 }
 export function adjacentUpper(grid:RaftGrid,gx:number,gz:number):PlacedModule|null{
- for(const [dx,dz] of [[1,0],[-1,0],[0,1],[0,-1]]){const m=grid.getModuleAt(gx+dx,gz+dz);if(m?.kind==='piso_superior')return m;}
+ for(const [dx,dz] of [[1,0],[-1,0],[0,1],[0,-1]]){const m=grid.modulesAt(gx+dx,gz+dz).find(m=>m.kind==='piso_superior');if(m)return m;}
  return null;
 }
 export function nearbyStair(grid:RaftGrid,x:number,z:number):PlacedModule|null{
  const gx=Math.round(x),gz=Math.round(z);let best:PlacedModule|null=null,dist=2.1**2;
  for(let dz=-2;dz<=2;dz++)for(let dx=-2;dx<=2;dx++){
-  const m=grid.getModuleAt(gx+dx,gz+dz);if(m?.kind!=='escada_interna'||!adjacentUpper(grid,m.gx,m.gz))continue;
+  const m=grid.modules.get((gx+dx)+','+(gz+dz));if(m?.kind!=='escada_interna'||!adjacentUpper(grid,m.gx,m.gz))continue;
   const d=(m.gx-x)**2+(m.gz-z)**2;if(d<dist){dist=d;best=m;}
  }
  return best;
+}
+
+export function nearDoor(grid:RaftGrid,x:number,z:number):PlacedModule|null{
+ const gx=Math.round(x),gz=Math.round(z);let best:PlacedModule|null=null,dist=.85**2;
+ for(let dz=-1;dz<=1;dz++)for(let dx=-1;dx<=1;dx++)for(const m of grid.modulesAt(gx+dx,gz+dz)){
+  if(m.kind!=='porta')continue;const a=m.rotation*Math.PI/2,px=m.gx+Math.sin(a)*.46,pz=m.gz+Math.cos(a)*.46,d=(px-x)**2+(pz-z)**2;
+  if(d<dist){best=m;dist=d;}
+ }return best;
 }

@@ -206,7 +206,7 @@ export class SharkBoss {
         this.bus.emit('structureDamaged', { gx: cell.gx, gz: cell.gz, amount: dmg, source: 'B01' });
         if (cell.hp === 0 && !cell.isCore) {
           grid.foundations.delete(this.targetKey);
-          grid.modules.delete(this.targetKey);
+          {const [gx,gz]=this.targetKey.split(',').map(Number);grid.removeModulesAt(gx,gz);}
           this.bus.emit('notification', {
             text: 'Mandíbula Branca destruiu uma fundação externa!',
             kind: 'danger',

@@ -18,9 +18,11 @@ describe('Jangada V6',()=>{
     const a=weatheredWoodTexture(),b=weatheredWoodTexture();
     expect(a.image.width).toBe(64);
     expect(a.image.height).toBe(64);
-    expect(a.image.data.length).toBe(16384);
-    expect(Array.from(a.image.data)).toEqual(Array.from(b.image.data));
-    expect(new Set(a.image.data).size).toBeGreaterThan(10);
+    const ad=a.image.data,bd=b.image.data;
+    expect(ad).not.toBeNull();expect(bd).not.toBeNull();
+    expect(ad!.length).toBe(16384);
+    expect(Array.from(ad!)).toEqual(Array.from(bd!));
+    expect(new Set(ad!).size).toBeGreaterThan(10);
     a.dispose();b.dispose();
   });
   it('mantém moldura acima do convés e acessórios em geometrias únicas',()=>{

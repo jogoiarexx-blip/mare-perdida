@@ -92,18 +92,19 @@ export class StructureGraph {
       grid.foundations.delete(dk);
     }
     for (const rk of removedKeys) {
-      grid.modules.delete(rk);
+      const [x,z]=rk.split(',').map(Number);grid.removeModulesAt(x,z);
     }
     return { ok: true, removedKeys };
   }
 
   static computeBuoyancy(grid: RaftGrid): BuoyancyMetrics {
     const foundationCount = grid.foundations.size;
-    const capacity = foundationCount * StructureGraph.CAPACITY_PER_FOUNDATION;
+    let capacity = 0;
 
     let totalMass = 0;
     for (const f of grid.foundations.values()) {
-      totalMass += StructureGraph.BASE_FOUNDATION_MASS + (f.reinforced ? 10 : 0);
+      capacity+=f.material==='metal'?160:StructureGraph.CAPACITY_PER_FOUNDATION;
+      totalMass += f.material==='metal'?42:StructureGraph.BASE_FOUNDATION_MASS + (f.reinforced ? 10 : 0);
     }
     for (const m of grid.modules.values()) {
       totalMass += m.mass;
