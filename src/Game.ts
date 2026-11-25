@@ -7,7 +7,7 @@ import { PerformanceMonitor } from './core/PerformanceMonitor';
 import { RenderOrigin } from './world/RenderOrigin';
 import { IslandFauna } from './ai/IslandFauna';
 import { ITEMS } from './data/items';
-import type { RecipeDef, StructureKind } from './data/recipes';
+import { RECIPES, type RecipeDef, type StructureKind } from './data/recipes';
 import { Inventory } from './player/Inventory';
 import { SurvivalSystem, type Difficulty } from './player/Survival';
 import { PlayerController } from './player/Controller';
