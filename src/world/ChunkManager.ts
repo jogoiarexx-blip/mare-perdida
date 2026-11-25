@@ -1,10 +1,10 @@
 import * as THREE from 'three';
-import { chunkAt,chunkKey,chunkRadius,desiredChunks,islandForChunk,islandHeight,type IslandSpec } from './ChunkLayout';
-import { islandTerrain,palmCrown } from './IslandGeometry';
+import { chunkAt,chunkKey,chunkRadius,desiredChunks,islandForChunk,islandHeight,islandBiome,type IslandSpec } from './ChunkLayout';
+import { islandTerrain,palmCrown,ruinGeometry,vegetationLod } from './IslandGeometry';
 import {resourcesForIsland,validResourceId,blocksResourceMovement,type IslandResource,type ResourceKind} from './IslandResources';
 
 interface LoadedChunk {cx:number;cz:number;island: IslandView|null;}
-interface IslandView {spec:IslandSpec;root:THREE.Group;terrain:THREE.Mesh;near:THREE.BufferGeometry;far:THREE.BufferGeometry;decor:THREE.Group;detailed:boolean;resources:IslandResource[];batches:Map<ResourceKind,THREE.InstancedMesh[]>;}
+interface IslandView {spec:IslandSpec;root:THREE.Group;terrain:THREE.Mesh;near:THREE.BufferGeometry;far:THREE.BufferGeometry;decor:THREE.Group;detailed:boolean;vegetationLevel:0|1|2;ruin:THREE.Mesh;resources:IslandResource[];batches:Map<ResourceKind,THREE.InstancedMesh[]>;}
 /** Streaming incremental; ilhas vazias não criam objetos de renderização. */
 export class ChunkManager {
   readonly group=new THREE.Group();
@@ -19,6 +19,12 @@ export class ChunkManager {
   private readonly terrainMat=new THREE.MeshStandardMaterial({vertexColors:true,roughness:1});
   private readonly trunkGeo=new THREE.CylinderGeometry(.085,.18,2.8,6);
   private readonly crownGeo=palmCrown();
+  private readonly simpleCrownGeo=palmCrown(3);
+  private readonly simpleTrunkGeo=new THREE.CylinderGeometry(.085,.18,2.8,4);
+  private readonly simpleRockGeo=new THREE.IcosahedronGeometry(.7,0);
+  private readonly ruinGeo=ruinGeometry();
+  private readonly ruinMat=new THREE.MeshStandardMaterial({color:0x88857a,roughness:1});
+  private readonly tint=new THREE.Color();
   private readonly rockGeo=new THREE.DodecahedronGeometry(.7,0);
   private readonly trunkMat=new THREE.MeshStandardMaterial({color:0x8d6744,roughness:.95});
   private readonly crownMat=new THREE.MeshStandardMaterial({color:0x46844b,roughness:.9,side:THREE.DoubleSide});
@@ -48,8 +54,11 @@ export class ChunkManager {
       v.root.visible=dist<105;
       const detailed=dist<(v.detailed?58:48);
       if(detailed!==v.detailed){
-        v.detailed=detailed;v.terrain.geometry=detailed?v.near:v.far;v.decor.visible=detailed;
+        v.detailed=detailed;v.terrain.geometry=detailed?v.near:v.far;
       }
+      const level=vegetationLod(dist,v.vegetationLevel);
+      if(level!==v.vegetationLevel)this.setVegetationLod(v,level);
+      v.ruin.visible=dist<82;
       // Solo distante não participa da passagem de sombras.
       v.terrain.receiveShadow=detailed;
     }
@@ -97,6 +106,14 @@ export class ChunkManager {
     const {cx,cz}=chunkAt(x,z);const v=this.chunks.get(chunkKey(cx,cz))?.island;
     return v?blocksResourceMovement(v.resources,this.depleted,x,z,y,fromX,fromZ):false;
   }
+  private setVegetationLod(v:IslandView,level:0|1|2):void{
+    v.vegetationLevel=level;v.decor.visible=level!==2;
+    const palms=v.batches.get('palm')!,rocks=v.batches.get('rock')!;
+    palms[0].geometry=level===0?this.trunkGeo:this.simpleTrunkGeo;
+    palms[1].geometry=level===0?this.crownGeo:this.simpleCrownGeo;
+    rocks[0].geometry=level===0?this.rockGeo:this.simpleRockGeo;
+    for(const kind of ['bush','chest'] as const)for(const m of v.batches.get(kind)!)m.visible=level===0&&m.count>0;
+  }
   private refreshResources(v:IslandView):void{
     for(const [kind,batches] of v.batches){
       let i=0;
@@ -116,6 +133,7 @@ export class ChunkManager {
         i++;
       }
       for(const mesh of batches){mesh.count=i;mesh.visible=i>0;mesh.instanceMatrix.needsUpdate=true;mesh.computeBoundingSphere();}
+      if(kind==='bush'||kind==='chest')for(const mesh of batches)mesh.visible=i>0&&v.vegetationLevel===0;
     }
   }
   private createIsland(spec:IslandSpec):IslandView{
@@ -132,9 +150,18 @@ export class ChunkManager {
     };
     add('palm',this.trunkGeo,this.trunkMat);add('palm',this.crownGeo,this.crownMat);
     add('rock',this.rockGeo,this.rockMat);add('bush',this.bushGeo,this.bushMat);add('chest',this.chestGeo,this.chestMat);
-    this.group.add(root);
-    const view:IslandView={spec,root,terrain,near,far,decor,detailed:false,resources,batches};
-    this.refreshResources(view);return view;
+    const biome=islandBiome(spec);
+    const crownTint={tropical:0xffffff,rochoso:0xb6bd93,verde:0x93df9e,arenoso:0xd8cf8e}[biome];
+    const crowns=batches.get('palm')![1];
+    for(let i=0;i<crowns.count;i++)crowns.setColorAt(i,this.tint.setHex(crownTint));
+    if(crowns.instanceColor)crowns.instanceColor.needsUpdate=true;
+    const ruin=new THREE.Mesh(this.ruinGeo,this.ruinMat);
+    const chest=resources.find(n=>n.kind==='chest')!;
+    // Pedras baixas junto ao caixote; centro aberto e acessível.
+    ruin.position.set(chest.x-spec.x,chest.y-.02,chest.z-spec.z);ruin.rotation.y=chest.angle;
+    root.add(ruin);this.group.add(root);
+    const view:IslandView={spec,root,terrain,near,far,decor,detailed:false,vegetationLevel:2,ruin,resources,batches};
+    this.refreshResources(view);this.setVegetationLod(view,2);return view;
   }
   private unload(c:LoadedChunk){
     const v=c.island;if(!v)return;
@@ -142,5 +169,5 @@ export class ChunkManager {
     for(const obj of v.decor.children)if(obj instanceof THREE.InstancedMesh)obj.dispose();
     v.root.clear();
   }
-  dispose(){this.reset(this.seed);this.terrainMat.dispose();this.trunkGeo.dispose();this.crownGeo.dispose();this.rockGeo.dispose();this.trunkMat.dispose();this.crownMat.dispose();this.rockMat.dispose();this.bushGeo.dispose();this.bushMat.dispose();this.chestGeo.dispose();this.chestMat.dispose();}
+  dispose(){this.reset(this.seed);this.terrainMat.dispose();this.trunkGeo.dispose();this.crownGeo.dispose();this.rockGeo.dispose();this.trunkMat.dispose();this.crownMat.dispose();this.rockMat.dispose();this.bushGeo.dispose();this.bushMat.dispose();this.chestGeo.dispose();this.chestMat.dispose();this.simpleCrownGeo.dispose();this.simpleTrunkGeo.dispose();this.simpleRockGeo.dispose();this.ruinGeo.dispose();this.ruinMat.dispose();}
 }

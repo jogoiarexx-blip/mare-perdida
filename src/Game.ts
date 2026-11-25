@@ -16,6 +16,7 @@ import { BuildTargetPicker, evaluateBuild, type BuildTarget } from './raft/Build
 import { nearestGridEntry, FlotsamBuckets } from './raft/GridQueries';
 import { OceanRenderer } from './world/Ocean';
 import { ChunkManager } from './world/ChunkManager';
+import { biomeLabel } from './world/ChunkLayout';
 import { Discovery,helmStep,bearing,cardinal,headingDegrees,minimapSvg } from './world/Navigation';
 import { WeatherSystem } from './world/Weather';
 import { SectorManager, type FlotsamEntity } from './world/SectorManager';
@@ -1266,7 +1267,7 @@ export class Game {
     const island=this.chunks.nearestIsland(this.player.position.x,this.player.position.z);
     if(island){
       const distance=Math.max(0,Math.round(Math.hypot(island.x-this.player.position.x,island.z-this.player.position.z)-island.radius));
-      if(distance<100)compassText+=' · Ilha '+distance+' m';
+      if(distance<100)compassText+=' · '+biomeLabel(island)+' '+distance+' m';
     }
     const hd=headingDegrees(this.raftRenderer.heading);
     compassText+=' · Proa '+cardinal(hd)+' '+Math.round(hd)+'°';

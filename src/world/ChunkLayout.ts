@@ -16,16 +16,34 @@ export function islandForChunk(seed:number,cx:number,cz:number):IslandSpec|null 
   if(rng.next()>.38)return null;
   return {id:'island:'+chunkKey(cx,cz),x:cx*CHUNK_SIZE+rng.range(32,96),z:cz*CHUNK_SIZE+rng.range(32,96),radius:rng.range(17,28),height:rng.range(4,7),seed:rng.getState()};
 }
+export type IslandBiome='tropical'|'rochoso'|'verde'|'arenoso';
+export function islandBiome(spec:IslandSpec):IslandBiome {
+  if(spec.id==='island:0:-1')return 'tropical';
+  return (['tropical','rochoso','verde','arenoso'] as const)[SeededRng.hashString(spec.seed+':biome')%4];
+}
+export const biomeLabel=(spec:IslandSpec)=>({tropical:'Ilha tropical',rochoso:'Ilha rochosa',verde:'Ilha verde',arenoso:'Ilha arenosa'}[islandBiome(spec)]);
+/** Contorno limitado ao raio original: preserva centros, IDs, fronteiras e posições dos recursos. */
+export function coastFactor(spec:IslandSpec,angle:number):number{
+  if(spec.id==='island:0:-1')return 1;
+  const phase=(spec.seed%360)*Math.PI/180;
+  return .94+.037*Math.sin(angle*3+phase)+.023*Math.cos(angle*5-phase);
+}
+export function islandRim(spec:IslandSpec,angle:number,r:number):number{
+  // Interior permanece estável; deformação só aumenta após a zona de vegetação.
+  return spec.radius*r*(1+(coastFactor(spec,angle)-1)*Math.max(0,(r-.65)/.35));
+}
 export const ISLAND_RINGS=[0,.30,.55,.72,.86,1] as const;
 export function ringHeight(spec:IslandSpec,index:number):number{
-  return [spec.height,spec.height*.81,spec.height*.47,spec.height*.22,.18,-1.4][index];
+  const profiles:Record<IslandBiome,number[]>={tropical:[1,.81,.47,.22],rochoso:[1,.91,.73,.30],verde:[1,.86,.58,.24],arenoso:[1,.69,.36,.15]};
+  return index<4?spec.height*profiles[islandBiome(spec)][index]:index===4?.18:-1.4;
 }
 /** Perfil físico idêntico às alturas dos anéis do terreno; null fora da ilha. */
 export function islandHeight(spec:IslandSpec,x:number,z:number):number|null {
-  const r=Math.hypot(x-spec.x,z-spec.z)/spec.radius;
-  if(r>1)return null;
-  for(let i=1;i<ISLAND_RINGS.length;i++)if(r<=ISLAND_RINGS[i]){
-    const t=(r-ISLAND_RINGS[i-1])/(ISLAND_RINGS[i]-ISLAND_RINGS[i-1]);
+  const dx=x-spec.x,dz=z-spec.z,angle=Math.atan2(dz,dx),r=Math.hypot(dx,dz);
+  if(r>islandRim(spec,angle,1))return null;
+  for(let i=1;i<ISLAND_RINGS.length;i++)if(r<=islandRim(spec,angle,ISLAND_RINGS[i])){
+    const inner=islandRim(spec,angle,ISLAND_RINGS[i-1]),outer=islandRim(spec,angle,ISLAND_RINGS[i]);
+    const t=(r-inner)/(outer-inner);
     return ringHeight(spec,i-1)*(1-t)+ringHeight(spec,i)*t;
   }
   return null;

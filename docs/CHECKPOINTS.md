@@ -11,7 +11,7 @@
 | CP06 | Transporte P2P base | EM TESTE | Diagnóstico WebRTC no menu com convite/resposta manual, canal de dados e ping bidirecional. Ainda faltam sinalização por sala, reentrada por token e validação em redes distintas e com TURN. |
 | CP07 | Autoridade e coop | PENDENTE | Depende do transporte e da sincronização autoritativa. |
 | CP08 | Capítulo 1 (M01–M05, S001–S010, B01 Mandíbula Branca) | EM TESTE | Fluxo lógico validado em `quest-engine.test.ts` (2/2); pendente playthrough humano completo do chefe B01 em 3D |
-| CP09 | Streaming e biomas | EM TESTE — etapa 3 | Setores de 128 m, ilhas determinísticas, LOD, descarregamento e solo navegável. Pendentes deltas persistentes, biomas, origem flutuante, perfil real e coop. |
+| CP09 | Streaming e biomas | EM TESTE — etapa 4 | Setores de 128 m, ilhas determinísticas, LOD, descarregamento e solo navegável. Pendentes deltas persistentes, biomas, origem flutuante, perfil real e coop. |
 
 ## Evidências do CP06
 
@@ -74,3 +74,7 @@
 
 ### CP09.3 — navegação e descoberta
 - Leme construível, controle direcional W/S/A/D e joystick touch, marcha à ré, âncora respeitada e rotação transportando o jogador sobre o convés. Colisão costeira testa centros das fundações, permitindo recuar de encalhes anteriores. Bússola com rumo cardinal e minimapa opcional M, 3×3 setores com neblina de descoberta e posição da jangada. Descobertas persistem em saves antigos/novos. Testes de navegação e mapa adicionados. Variedade de ilhas, ruínas, LOD de vegetação avançado e origem flutuante pendentes; validação manual e FPS pendentes.
+
+
+### CP09.4 — biomas visuais e LOD de vegetação
+- Quatro variantes determinísticas (tropical, rochosa, verde e arenosa), contorno irregular limitado ao raio original, perfis de relevo e paletas diferenciados. Primeira ilha mantém forma e altura originais; centros e IDs dos recursos preservados, com ajuste de altura conforme terreno. Mini mapa representa contornos e biomas. Ruínas baixas decorativas junto aos caixotes, sem interiores nem colisão própria. Vegetação tem três níveis com histerese: detalhada, geometria simplificada, oculta; materiais/geometrias compartilhados e descarte mantido. Testes de orçamento, limites e estabilidade adicionados; medição real e verificação visual pendentes. Origem flutuante e biomas com gameplay exclusivo serão etapas separadas.

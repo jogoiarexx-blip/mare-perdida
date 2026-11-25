@@ -1,4 +1,4 @@
-import {chunkAt,chunkKey,CHUNK_SIZE,islandForChunk} from './ChunkLayout';
+import {chunkAt,chunkKey,CHUNK_SIZE,islandForChunk,islandRim,islandBiome} from './ChunkLayout';
 export const cardinal=(degrees:number)=>['N','NE','L','SE','S','SO','O','NO'][Math.round(((degrees%360+360)%360)/45)%8];
 export function bearing(dx:number,dz:number):number{return (Math.atan2(dx,-dz)*180/Math.PI+360)%360;}
 export function headingDegrees(heading:number):number{return (-heading*180/Math.PI%360+360)%360;}
@@ -29,7 +29,11 @@ export function minimapSvg(seed:number,discovery:Discovery,x:number,z:number,raf
     const sx=cx+i-1,sz=cz+j-1,seen=discovery.has(sx,sz);
     content+='<rect x="'+(i*size)+'" y="'+(j*size)+'" width="40" height="40" fill="'+(seen?'#174e67':'#0a2536')+'" stroke="#42647b" stroke-width=".5"/>';
     const island=seen?islandForChunk(seed,sx,sz):null;
-    if(island)content+='<circle cx="'+px(island.x).toFixed(1)+'" cy="'+py(island.z).toFixed(1)+'" r="'+(island.radius/CHUNK_SIZE*size).toFixed(1)+'" fill="#92b97a" stroke="#e0cd90" stroke-width="1.5"/>';
+    if(island){
+      const points=[];for(let k=0;k<16;k++){const a=k*Math.PI/8,r=islandRim(island,a,.86);points.push(px(island.x+Math.cos(a)*r).toFixed(1)+','+py(island.z+Math.sin(a)*r).toFixed(1));}
+      const fill={tropical:'#92b97a',rochoso:'#969b95',verde:'#57986a',arenoso:'#dfc58b'}[islandBiome(island)];
+      content+='<polygon points="'+points.join(' ')+'" fill="'+fill+'" stroke="#e0cd90" stroke-width="1"/>';
+    }
   }
   const rx=px(raftX),rz=py(raftZ);
   if(rx>=0&&rx<=120&&rz>=0&&rz<=120)content+='<rect x="'+(rx-2).toFixed(1)+'" y="'+(rz-2).toFixed(1)+'" width="4" height="4" fill="#d8a15c"/>';
