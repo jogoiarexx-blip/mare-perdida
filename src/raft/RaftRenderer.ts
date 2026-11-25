@@ -206,6 +206,26 @@ export class RaftRenderer {
         const wheel=new THREE.Mesh(combine(parts),metalMat);wheel.position.set(0,.94,.11);
         g.add(base,wheel);break;
       }
+      case 'motor': {
+        const base=new THREE.Mesh(combine([new THREE.BoxGeometry(.7,.16,.75),new THREE.BoxGeometry(.54,.5,.48).translate(0,.28,0),new THREE.CylinderGeometry(.13,.13,.4,8).rotateZ(Math.PI/2).translate(.28,.29,0)]),metalMat);
+        const prop=new THREE.Mesh(combine([new THREE.BoxGeometry(.45,.08,.12),new THREE.BoxGeometry(.08,.45,.12)]),metalMat);prop.position.set(0,-.22,.42);g.add(base,prop);break;
+      }
+      case 'escada':{
+        const pieces:THREE.BufferGeometry[]=[];for(const x of [-.23,.23])pieces.push(new THREE.BoxGeometry(.08,1.4,.08).translate(x,-.45,.49));
+        for(let i=0;i<5;i++)pieces.push(new THREE.BoxGeometry(.46,.075,.10).translate(0,-1+i*.28,.49));
+        g.add(new THREE.Mesh(combine(pieces),woodMat));break;
+      }
+      case 'bandeira':{
+        const pole=new THREE.Mesh(new THREE.CylinderGeometry(.04,.06,3.2,6),woodMat);pole.position.y=1.6;
+        const flag=new THREE.Mesh(new THREE.PlaneGeometry(.9,.52),new THREE.MeshStandardMaterial({color:0xe76b42,side:THREE.DoubleSide,roughness:1}));flag.position.set(.45,2.85,0);g.add(pole,flag);break;
+      }
+      case 'farol_nav':{
+        const base=new THREE.Mesh(combine([new THREE.BoxGeometry(.45,.1,.45),new THREE.CylinderGeometry(.055,.07,1.1,6).translate(0,.55,0),new THREE.CylinderGeometry(.22,.18,.3,10).rotateX(Math.PI/2).translate(0,1.1,0)]),metalMat);
+        const lens=new THREE.Mesh(new THREE.CircleGeometry(.18,10),new THREE.MeshStandardMaterial({color:0xffe6a2,emissive:0xe7b653,side:THREE.DoubleSide}));lens.position.set(0,1.1,-.16);g.add(base,lens);break;
+      }
+      case 'radar':{
+        const base=new THREE.Mesh(combine([new THREE.BoxGeometry(.5,.15,.5),new THREE.CylinderGeometry(.055,.07,1.65,6).translate(0,.83,0),new THREE.BoxGeometry(.95,.12,.18).translate(0,1.67,0)]),metalMat);g.add(base);break;
+      }
       case 'ancora': {
         const winch = new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.45, 0.65), woodMat);
         winch.position.y = 0.22;
@@ -286,6 +306,8 @@ export class RaftRenderer {
   }
 
   private updateModuleVisual(grp: THREE.Group, mod: PlacedModule): void {
+    if(mod.kind==='farol_nav'&&grp.children[1])grp.children[1].visible=mod.active;
+    if(mod.kind==='ancora'&&grp.children[1])grp.children[1].position.y=mod.active?-.38:.56;
     if (mod.kind === 'vela' && grp.children[1]) {
       grp.children[1].scale.y = mod.active ? 1.0 : 0.25;
     }

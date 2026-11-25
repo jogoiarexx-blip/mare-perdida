@@ -24,6 +24,7 @@ export interface PlacedModule {
   planted?: boolean;
   watered?: boolean;
   storedItems?: Record<string, number>;
+  fuel?:number;
 }
 
 export interface SerializedRaftGrid {
@@ -168,6 +169,7 @@ export class RaftGrid {
       planted: false,
       watered: false,
       storedItems: kind === 'bau' ? {} : undefined,
+      fuel:kind==='motor'?0:undefined,
     };
     this.modules.set(key, mod);
     return { ok: true, module: mod };

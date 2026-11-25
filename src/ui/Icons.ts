@@ -11,6 +11,13 @@ const GLYPHS: Record<string, readonly [string,string]> = {
   "lanterna_mergulho":["#ffe09b","<path d=\"M3 9h9l7-5v16l-7-5H3Z M21 5l2-2m-2 9h2m-2 7 2 2\"/>"],
   "nadadeiras":["#5dbac8","<path d=\"M3 3h6v7l3 10H1l2-10Zm12 0h6v7l2 10H12l3-10Z\"/>"],
   "reliquia_atlas":["#e0bd70","<path d=\"m12 2 9 7-9 13L3 9Zm-9 7h18M8 9l4 13 4-13\"/>"],
+  "motor":["#aabdc8","<rect x=\"4\" y=\"5\" width=\"15\" height=\"12\" rx=\"2\"/><path d=\"M8 5V2h7v3M7 17v4m9-4v4M1 8v6h3m15-6h3v6h-3\"/>"],
+  "combustivel":["#e19a54","<rect x=\"4\" y=\"5\" width=\"15\" height=\"16\" rx=\"2\"/><path d=\"M8 5V2h7v3m-7 5 7 7m0-7-7 7\"/>"],
+  "escada":["#c99d67","<path d=\"M5 2v20M19 2v20M5 5h14M5 10h14M5 15h14M5 20h14\"/>"],
+  "bandeira":["#e76b42","<path d=\"M5 22V2l16 3-5 5 5 5-16-3\"/>"],
+  "farol_nav":["#ffe19b","<path d=\"M3 22h12M9 22V10M4 10V3h10v7ZM17 4l5-2m-5 5h5m-5 3 5 2\"/>"],
+  "radar":["#83c9a8","<circle cx=\"12\" cy=\"12\" r=\"10\"/><circle cx=\"12\" cy=\"12\" r=\"5\"/><path d=\"M12 12 19 5M12 2v20M2 12h20\"/>"],
+  "binoculo":["#abc5d6","<path d=\"M3 4h6l2 6v9H1v-9Zm12 0h6l2 6v9H13v-9ZM11 12h2\"/>"],
   "madeira": [
     "#ce935c",
     "<path d=\"M3 8 16 3l5 5v10L8 22l-5-5Z\"/><path d=\"m3 8 5 5 13-5M8 13v9m3-10 7-3m-7 7 7-3\"/>"

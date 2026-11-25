@@ -40,6 +40,7 @@ export function evaluateBuild(grid:RaftGrid,kind:StructureKind,gx:number,gz:numb
   } else if(!cell) reason='Precisa de uma fundação de madeira.';
   else if(kind==='borda_reforcada'&&cell.reinforced) reason='Esta fundação já está reforçada.';
   else if(kind!=='borda_reforcada'&&grid.getModuleAt(gx,gz)) reason='Já existe um equipamento neste espaço.';
+  if(!reason&&kind==='escada'&&[[1,0],[-1,0],[0,1],[0,-1]].every(([dx,dz])=>grid.getFoundation(gx+dx,gz+dz)))reason='Instale a escada numa borda da jangada.';
   if(!reason&&!hasMaterials) reason='Materiais insuficientes.';
   return {gx,gz,valid:!reason,reason};
 }

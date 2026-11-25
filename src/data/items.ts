@@ -27,6 +27,8 @@ export const ITEMS: Record<string, ItemDef> = {
   lanterna_mergulho:{id:'lanterna_mergulho',name:'Lanterna de mergulho',description:'Ilumina automaticamente sob a água; selecione e use para ligar/desligar.',category:'ferramenta',stackMax:1,icon:'🔦',protectedOnDeath:true},
   nadadeiras:{id:'nadadeiras',name:'Nadadeiras',description:'Na mochila, aumentam a velocidade de nado em 35%.',category:'ferramenta',stackMax:1,icon:'🤿',protectedOnDeath:true},
   reliquia_atlas:{id:'reliquia_atlas',name:'Relíquia Atlas',description:'Artefato raro recuperado de um baú submerso.',category:'missao',stackMax:10,icon:'💎',protectedOnDeath:true},
+  combustivel:{id:'combustivel',name:'Combustível artesanal',description:'Abastece o motor naval por até 60 segundos.',category:'recurso',stackMax:20,icon:'⛽'},
+  binoculo:{id:'binoculo',name:'Binóculo',description:'Use para aproximar a visão, use novamente para restaurar.',category:'ferramenta',stackMax:1,icon:'🔭',protectedOnDeath:true},
   madeira: {
     id: 'madeira',
     name: 'Madeira à deriva',

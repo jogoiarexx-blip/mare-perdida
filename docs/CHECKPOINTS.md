@@ -103,3 +103,7 @@
 
 ### CP10.3 — naufrágios e perigos submersos
 - Tubarão de recife, moreia e água-viva com IA local, ataque sinalizado, lança, LOD por distância, limite de três entidades e descarte ao sair da água. Predadores podem reaparecer ao retornar ao setor; não concedem loot para evitar duplicação. Casco procedural aberto nas extremidades, paredes laterais com colisão horizontal e baú raro persistente com relíquia Atlas; interiores simples, sem colisão vertical do teto. Lanterna com SpotLight sem sombra, ativação automática sob a água e toggle por uso; nadadeiras +35% no nado. Três contratos DIVE01–03, preservando IDs previstos do GDD; testes adicionados. Validação manual de controles, geometria/colisão dos naufrágios e FPS pendente.
+
+
+### CP10.4 — navegação avançada
+- Motor com combustível artesanal (60 s/carga, capacidade 180 s), pilotagem K/botão, consumo proporcional à aceleração/curva, âncora bloqueia propulsão, estado de combustível no módulo salvo. Escada lateral aumenta alcance de embarque perto da peça; bandeira visual; farol direcional sem sombras extras; binóculo com zoom alternável; radar mostra ilhas próximas e contornos no minimapa sem gravar descoberta. Novos modelos procedurais e receitas, três testes. Radar não detecta ainda destroços, bandeira sem marcador dedicado, combustível e equipamentos sujeitos a balanceamento; testes visuais e FPS pendentes.

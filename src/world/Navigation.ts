@@ -21,6 +21,22 @@ export function deckDistance(x:number,z:number,cells:Iterable<{gx:number;gz:numb
   for(const c of cells){const dx=Math.max(0,Math.abs(x-c.gx)-.5),dz=Math.max(0,Math.abs(z-c.gz)-.5);best=Math.min(best,dx*dx+dz*dz);}
   return Math.sqrt(best);
 }
+export const MOTOR_CAPACITY=180;
+export const FUEL_SECONDS=60;
+export function motorStep(heading:number,turn:number,throttle:number,anchored:boolean,dt:number,massMultiplier:number,fuel:number){
+ if(anchored||fuel<=0)return {heading,dx:0,dz:0,used:0};
+ const t=Math.max(-1,Math.min(1,throttle)),r=Math.max(-1,Math.min(1,turn)),load=Math.max(Math.abs(t),Math.abs(r)*.35);
+ const time=load>0?Math.min(dt,fuel/load):dt;
+ const next=heading-r*.7*time,speed=(t<0?1.8:4.2)*t*massMultiplier;
+ return {heading:next,dx:-Math.sin(next)*speed*time,dz:-Math.cos(next)*speed*time,used:load*time};
+}
+export function radarIsland(seed:number,x:number,z:number,range=192){
+ const {cx,cz}=chunkAt(x,z),r=Math.ceil(range/CHUNK_SIZE);let nearest:ReturnType<typeof islandForChunk>=null,best=range;
+ for(let dz=-r;dz<=r;dz++)for(let dx=-r;dx<=r;dx++){
+  const i=islandForChunk(seed,cx+dx,cz+dz);if(!i)continue;
+  const dist=Math.max(0,Math.hypot(i.x-x,i.z-z)-i.radius);if(dist<best){nearest=i;best=dist;}
+ }return nearest;
+}
 export function validDiscoveredChunk(id:unknown):id is string{return typeof id==='string'&&/^-?\d{1,9}:-?\d{1,9}$/.test(id);}
 export class Discovery {
   private readonly seen=new Set<string>();
@@ -31,7 +47,7 @@ export class Discovery {
   get count(){return this.seen.size;}
 }
 /** Mapa norte para cima; só desenha ilhas dos setores visitados. */
-export function minimapSvg(seed:number,discovery:Discovery,x:number,z:number,raftX:number,raftZ:number,yaw:number):string{
+export function minimapSvg(seed:number,discovery:Discovery,x:number,z:number,raftX:number,raftZ:number,yaw:number,radar=false):string{
   const {cx,cz}=chunkAt(x,z),size=40;
   const originX=(cx-1)*CHUNK_SIZE,originZ=(cz-1)*CHUNK_SIZE;
   const px=(wx:number)=>(wx-originX)/CHUNK_SIZE*size;
@@ -40,7 +56,7 @@ export function minimapSvg(seed:number,discovery:Discovery,x:number,z:number,raf
   for(let j=0;j<3;j++)for(let i=0;i<3;i++){
     const sx=cx+i-1,sz=cz+j-1,seen=discovery.has(sx,sz);
     content+='<rect x="'+(i*size)+'" y="'+(j*size)+'" width="40" height="40" fill="'+(seen?'#174e67':'#0a2536')+'" stroke="#42647b" stroke-width=".5"/>';
-    const island=seen?islandForChunk(seed,sx,sz):null;
+    const island=seen||radar?islandForChunk(seed,sx,sz):null;
     if(island){
       const points=[];for(let k=0;k<16;k++){const a=k*Math.PI/8,r=islandRim(island,a,.86);points.push(px(island.x+Math.cos(a)*r).toFixed(1)+','+py(island.z+Math.sin(a)*r).toFixed(1));}
       const fill={tropical:'#92b97a',rochoso:'#969b95',verde:'#57986a',arenoso:'#dfc58b'}[islandBiome(island)];

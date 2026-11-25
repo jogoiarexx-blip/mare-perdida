@@ -15,6 +15,11 @@ export type StructureKind =
   | 'vela'
   | 'ancora'
   | 'leme'
+  | 'motor'
+  | 'escada'
+  | 'bandeira'
+  | 'farol_nav'
+  | 'radar'
   | 'radio'
   | 'cobertura'
   | 'horta'
@@ -34,6 +39,13 @@ export interface RecipeDef {
 }
 
 export const RECIPES: RecipeDef[] = [
+  {id:'rec_combustivel',name:'Combustível artesanal',description:'Uma carga fornece até 60 segundos de motor em aceleração máxima.',bench:'manual',ingredients:[{itemId:'alga_marinha',count:3},{itemId:'plastico',count:1}],outputItemId:'combustivel',outputCount:1},
+  {id:'rec_binoculo',name:'Binóculo',description:'Selecione e use para aproximar a visão (use novamente para voltar).',bench:'manual',ingredients:[{itemId:'plastico',count:3},{itemId:'sucata',count:2}],outputItemId:'binoculo',outputCount:1},
+  {id:'build_motor',name:'Motor naval',description:'K/Motor para pilotar. E perto do motor ou usar combustível para abastecer. W/S e A/D.',bench:'construcao',ingredients:[{itemId:'minerio_marinho',count:6},{itemId:'sucata',count:8},{itemId:'madeira',count:4}],placesStructure:'motor',structureMass:65},
+  {id:'build_escada',name:'Escada lateral',description:'Na borda, amplie o alcance de embarque. E/Ação na água.',bench:'construcao',ingredients:[{itemId:'madeira',count:3},{itemId:'corda',count:1}],placesStructure:'escada',structureMass:12},
+  {id:'build_bandeira',name:'Bandeira de localização',description:'Mastro colorido para encontrar a jangada.',bench:'construcao',ingredients:[{itemId:'madeira',count:2},{itemId:'tecido',count:1}],placesStructure:'bandeira',structureMass:8},
+  {id:'build_farol_nav',name:'Farol de navegação',description:'Ilumina a direção da proa. G/Farol liga ou desliga.',bench:'construcao',ingredients:[{itemId:'sucata',count:3},{itemId:'plastico',count:2},{itemId:'minerio_marinho',count:1}],placesStructure:'farol_nav',structureMass:15},
+  {id:'build_radar',name:'Radar de exploração',description:'Detecta ilhas próximas mesmo sem descoberta prévia. E para ligar; consulte M.',bench:'construcao',ingredients:[{itemId:'minerio_marinho',count:4},{itemId:'sucata',count:5},{itemId:'plastico',count:3}],placesStructure:'radar',structureMass:28},
   {id:'rec_lanterna_mergulho',name:'Lanterna de mergulho',description:'Iluminação subaquática sem sombras extras.',bench:'manual',ingredients:[{itemId:'plastico',count:3},{itemId:'sucata',count:2},{itemId:'minerio_marinho',count:1}],outputItemId:'lanterna_mergulho',outputCount:1},
   {id:'rec_nadadeiras',name:'Nadadeiras',description:'Aumenta a velocidade de nado em 35%.',bench:'manual',ingredients:[{itemId:'plastico',count:4},{itemId:'alga_marinha',count:2},{itemId:'corda',count:1}],outputItemId:'nadadeiras',outputCount:1},
   {id:'rec_remo',name:'Remo de madeira',description:'Navegação manual desde o início, mesmo sem leme ou vela.',bench:'manual',ingredients:[{itemId:'madeira',count:2},{itemId:'plastico',count:1}],outputItemId:'remo',outputCount:1},
