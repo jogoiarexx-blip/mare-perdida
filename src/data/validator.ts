@@ -1,6 +1,7 @@
 import { ITEMS } from './items';
 import { RECIPES } from './recipes';
-import { CHAPTER_1_QUESTS } from './quests';
+import { CHAPTER_1_QUESTS,CHAPTER_2_QUESTS,DIVE_QUESTS } from './quests';
+const ALL_QUESTS=[...CHAPTER_1_QUESTS,...CHAPTER_2_QUESTS,...DIVE_QUESTS];
 
 export interface ValidationResult {
   valid: boolean;
@@ -73,7 +74,7 @@ export function validateGameData(): ValidationResult {
 
   // 3. Verificar missões (IDs únicos, requires válidos, DAG, failPolicy e objetivos)
   const questIds = new Set<string>();
-  for (const q of CHAPTER_1_QUESTS) {
+  for (const q of ALL_QUESTS) {
     if (questIds.has(q.id)) {
       errors.push(`Missão duplicada: ${q.id}`);
     }
@@ -86,7 +87,7 @@ export function validateGameData(): ValidationResult {
     }
   }
 
-  for (const q of CHAPTER_1_QUESTS) {
+  for (const q of ALL_QUESTS) {
     for (const req of q.requires) {
       if (!questIds.has(req)) {
         errors.push(`Missão ${q.id} depende de missão inexistente: ${req}`);
@@ -100,7 +101,7 @@ export function validateGameData(): ValidationResult {
     if (qVisiting.has(qid)) return true;
     if (qVisited.has(qid)) return false;
     qVisiting.add(qid);
-    const q = CHAPTER_1_QUESTS.find((item) => item.id === qid);
+    const q = ALL_QUESTS.find((item) => item.id === qid);
     if (q) {
       for (const req of q.requires) {
         if (hasQuestCycle(req)) return true;
@@ -111,7 +112,7 @@ export function validateGameData(): ValidationResult {
     return false;
   };
 
-  for (const q of CHAPTER_1_QUESTS) {
+  for (const q of ALL_QUESTS) {
     if (hasQuestCycle(q.id)) {
       errors.push(`Ciclo detectado nas dependências de missão: ${q.id}`);
       break;
