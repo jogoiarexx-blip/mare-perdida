@@ -15,6 +15,7 @@ import { OceanRenderer } from './world/Ocean';
 import { WeatherSystem } from './world/Weather';
 import { SectorManager } from './world/SectorManager';
 import { SharkBoss } from './ai/SharkBoss';
+import { MarineAmbient } from './world/MarineAmbient';
 import { QuestEngine } from './quests/QuestEngine';
 import { SaveStore, SAVE_SCHEMA_VERSION, type GameOptions, type WorldSaveData } from './save/Store';
 import { SoundFX } from './audio/SoundFX';
@@ -34,6 +35,7 @@ export class Game {
   private scene!: THREE.Scene;
   private camera!: THREE.PerspectiveCamera;
   private ocean!: OceanRenderer;
+  private ambient!: MarineAmbient;
   private weather!: WeatherSystem;
   private sector!: SectorManager;
   private raftGrid = new RaftGrid(256);
@@ -110,6 +112,7 @@ export class Game {
     const low = this.options.quality === 'baixo';
     this.ocean = new OceanRenderer(low);
     this.scene.add(this.ocean.mesh);
+    this.ambient = new MarineAmbient(this.scene, low);
 
     this.weather = new WeatherSystem(this.scene, !low);
     this.sector = new SectorManager(this.seed);
@@ -509,6 +512,7 @@ export class Game {
   private render(frameDt: number): void {
     this.ocean.update(this.raftRenderer.x, this.raftRenderer.z, this.clock.elapsedSeconds, this.weather.stormFactor);
     this.player.applyToCamera(this.camera, this.clock.elapsedSeconds, this.options.cameraBob);
+    this.ambient.update(this.camera.position.x,this.camera.position.z,this.camera.position.y,this.clock.elapsedSeconds,this.weather.stormFactor,this.options.quality==='baixo');
     this.renderer.render(this.scene, this.camera);
 
     if (this.started && frameDt >= 0) {

@@ -30,3 +30,8 @@
 - Ondas e normais analíticas na GPU, cores e espuma procedural; atualização da CPU apenas por uniforms, sem alterar altura de onda da física. Perfis de 8.192 e 25.088 triângulos para a superfície.
 - Casco com proa curva, cabine, corrimãos e boia com faixa e proteção da luz. LOD com histerese para detritos e detalhes do destroço; sombras de detritos somente até 28 m. Sem novos assets externos.
 - Testes de orçamento e histerese adicionados. Compilação do shader no navegador, comparação de FPS e avaliação visual em dispositivos reais ainda pendentes.
+
+
+### Melhoria visual 3 — equipamentos e ambiente
+- Gancho curvo, rede com trama, purificador com tubulação, grelha, rádio com painel, cobertura com ripas e plantas com folhas. Templates de módulos compartilhados por tipo, inclusive após remoção/reconstrução; atualização de rotação e troca de tipo.
+- Cardumes decorativos instanciados (12/30) visíveis abaixo da superfície e chuva em uma malha de segmentos (72/180). Sem entidades de gameplay ou novos assets. Testes de orçamento adicionados; validação visual e FPS reais pendentes.

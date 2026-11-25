@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { hookGeometry } from '../render/EquipmentGeometry';
 import type { SectorManager } from '../world/SectorManager';
 import { getWaveHeight } from '../world/Ocean';
 
@@ -28,7 +29,7 @@ export class HookController {
 
   constructor(scene: THREE.Scene) {
     this.hookMesh = new THREE.Mesh(
-      new THREE.ConeGeometry(0.14, 0.34, 6),
+      hookGeometry(),
       new THREE.MeshStandardMaterial({ color: 0xd0d7de, metalness: 0.65, roughness: 0.35 })
     );
     this.hookMesh.visible = false;
@@ -41,6 +42,7 @@ export class HookController {
       new THREE.LineBasicMaterial({ color: 0xdec29b })
     );
     this.ropeLine.visible = false;
+    this.ropeLine.frustumCulled = false;
     scene.add(this.ropeLine);
   }
 

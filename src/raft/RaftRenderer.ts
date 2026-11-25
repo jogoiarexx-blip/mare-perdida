@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { plankDeck } from '../render/DetailGeometry';
+import { collectionNet, plantGeometry, grillGeometry, radioFace, roofGeometry } from '../render/EquipmentGeometry';
 import { cellKey, RaftGrid, type PlacedModule } from './Grid';
 import { getWaveHeight, getWaveNormal } from '../world/Ocean';
 import type { StructureKind } from '../data/recipes';
@@ -15,6 +16,7 @@ export class RaftRenderer {
 
   private foundationMeshes = new Map<string, THREE.Group>();
   private moduleMeshes = new Map<string, THREE.Group>();
+  private readonly moduleTemplates = new Map<PlacedModule['kind'], THREE.Group>();
   private ghostMesh: THREE.Mesh;
 
   private readonly deckGeo = plankDeck();
@@ -86,7 +88,7 @@ export class RaftRenderer {
 
     // Remover módulos antigos
     for (const [key, grp] of this.moduleMeshes.entries()) {
-      if (!grid.modules.has(key)) {
+      if (!grid.modules.has(key) || grid.modules.get(key)?.kind !== grp.userData.kind) {
         this.root.remove(grp);
         this.moduleMeshes.delete(key);
       }
@@ -96,12 +98,16 @@ export class RaftRenderer {
     for (const [key, mod] of grid.modules.entries()) {
       let grp = this.moduleMeshes.get(key);
       if (!grp) {
-        grp = this.buildModuleMesh(mod);
+        let template = this.moduleTemplates.get(mod.kind);
+        if (!template) { template = this.buildModuleMesh(mod); this.moduleTemplates.set(mod.kind,template); }
+        grp = template.clone(true);
+        grp.userData.kind = mod.kind;
         grp.position.set(mod.gx * RaftGrid.CELL_SIZE, 0.2, mod.gz * RaftGrid.CELL_SIZE);
         grp.rotation.y = (mod.rotation * Math.PI) / 2;
         this.root.add(grp);
         this.moduleMeshes.set(key, grp);
       }
+      grp.rotation.y = mod.rotation * Math.PI / 2;
       this.updateModuleVisual(grp, mod);
     }
   }
@@ -117,13 +123,17 @@ export class RaftRenderer {
         const base = new THREE.Mesh(new THREE.BoxGeometry(0.75, 0.35, 0.75), woodMat);
         base.position.y = 0.17;
         const tank = new THREE.Mesh(
-          new THREE.CylinderGeometry(0.24, 0.28, 0.55, 10),
+          new THREE.CylinderGeometry(0.24, 0.28, 0.55, 14),
           new THREE.MeshStandardMaterial({ color: 0x52c7e8, transparent: true, opacity: 0.78 })
         );
         tank.position.y = 0.56;
         const dome = new THREE.Mesh(new THREE.ConeGeometry(0.32, 0.25, 8), metalMat);
         dome.position.y = 0.95;
-        g.add(base, tank, dome);
+        const pipe = new THREE.Mesh(new THREE.TorusGeometry(.15,.035,6,10,Math.PI),metalMat);
+        pipe.position.set(.28,.65,0); pipe.rotation.z = -Math.PI/2;
+        const tap = new THREE.Mesh(new THREE.CylinderGeometry(.033,.033,.13,8),metalMat);
+        tap.position.set(.4,.5,0);
+        g.add(base, tank, dome, pipe,tap);
         break;
       }
       case 'churrasqueira': {
@@ -134,7 +144,8 @@ export class RaftRenderer {
           new THREE.MeshStandardMaterial({ color: 0xff6224, emissive: 0xff3b00, emissiveIntensity: 0.8 })
         );
         ember.position.y = 0.51;
-        g.add(stand, ember);
+        const grill = new THREE.Mesh(grillGeometry(),metalMat); grill.position.y = .58;
+        g.add(stand, ember,grill);
         break;
       }
       case 'cama': {
@@ -152,8 +163,8 @@ export class RaftRenderer {
       }
       case 'rede_coleta': {
         const net = new THREE.Mesh(
-          new THREE.BoxGeometry(0.92, 0.22, 0.92),
-          new THREE.MeshStandardMaterial({ color: 0xc2a878, wireframe: true })
+          collectionNet(),
+          new THREE.MeshStandardMaterial({ color: 0xc2a878, roughness: .9 })
         );
         net.position.y = 0.05;
         g.add(net);
@@ -195,7 +206,8 @@ export class RaftRenderer {
           new THREE.MeshStandardMaterial({ color: 0x22ff88, emissive: 0x11cc66, emissiveIntensity: 1.0 })
         );
         led.position.set(-0.18, 0.36, 0.24);
-        g.add(box, ant, led);
+        const front = new THREE.Mesh(radioFace(),new THREE.MeshStandardMaterial({color:0x17282f,roughness:.65}));
+        front.position.y=.32; g.add(box, ant, led,front);
         break;
       }
       case 'cobertura': {
@@ -208,7 +220,7 @@ export class RaftRenderer {
         const p4 = p1.clone();
         p4.position.set(0.4, 0.95, 0.4);
         const roof = new THREE.Mesh(
-          new THREE.BoxGeometry(1.06, 0.12, 1.06),
+          roofGeometry(),
           new THREE.MeshStandardMaterial({ color: 0x709946, roughness: 0.9 })
         );
         roof.position.y = 1.92;
@@ -224,7 +236,7 @@ export class RaftRenderer {
         );
         soil.position.y = 0.27;
         const sprout = new THREE.Mesh(
-          new THREE.ConeGeometry(0.2, 0.45, 6),
+          plantGeometry(),
           new THREE.MeshStandardMaterial({ color: 0x4cd964, roughness: 0.7 })
         );
         sprout.position.y = 0.5;
@@ -301,6 +313,13 @@ export class RaftRenderer {
   }
 
   dispose(): void {
+    const geometries = new Set<THREE.BufferGeometry>();
+    const materials = new Set<THREE.Material>();
+    for (const template of this.moduleTemplates.values()) template.traverse(obj => {
+      if (obj instanceof THREE.Mesh) { geometries.add(obj.geometry); if(Array.isArray(obj.material)) obj.material.forEach(m=>materials.add(m)); else materials.add(obj.material); }
+    });
+    geometries.forEach(g=>g.dispose()); materials.forEach(m=>m.dispose()); this.moduleTemplates.clear();
+    this.ghostMesh.geometry.dispose();
     this.deckGeo.dispose();
     this.trimGeo.dispose();
     this.plankMat.dispose();
