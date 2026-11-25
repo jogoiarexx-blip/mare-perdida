@@ -52,7 +52,7 @@ export class MarineAmbient {
       }
       this.fish.instanceMatrix.needsUpdate=true;
     }
-    this.rain.visible=storm>.04;
+    this.rain.visible=storm>.04&&!this.fish.visible;
     if(this.rain.visible){
       const count=Math.min(budget.rain,this.maxRain,Math.ceil(this.maxRain*Math.min(1,storm/.45)));
       this.rain.geometry.setDrawRange(0,count*2);
