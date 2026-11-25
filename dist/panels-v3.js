@@ -82,6 +82,16 @@ css.textContent=`
 #ui-root .modal-card:has(#panel-body) .tab-btn,#ui-root #panel-close{min-height:32px;padding:5px 8px;}
 #ui-root #panel-body{padding:8px;}
 }
+
+/* Inventário: organização por seleção, arrastar e soltar e toque. */
+#ui-root #panel-body .inv-grid{grid-template-columns:repeat(4,minmax(0,1fr));}
+#ui-root #panel-body [data-slot]{touch-action:manipulation;user-select:none;}
+#ui-root #panel-body [data-slot].mare-slot-picked{opacity:1;border:2px solid #a5f4ff;background:#245d70;box-shadow:inset 0 0 0 2px #0b2936;}
+#ui-root #panel-body [data-slot].mare-slot-target{border:2px dashed #9cebc3;background:#25584d;}
+#ui-root #panel-body .mare-inventory-actions{margin-top:12px;padding:10px;border:1px solid #6e9eaa55;background:#091f2d;border-radius:4px 10px 4px 4px;}
+#ui-root #panel-body .mare-inventory-hint{font-size:.82em;line-height:1.45;color:#d0e8ed;margin-bottom:9px;}
+#ui-root #panel-body .mare-inventory-buttons{display:flex;flex-wrap:wrap;gap:6px;}
+#ui-root #panel-body .mare-inventory-buttons .btn{flex:1 1 auto;min-height:40px;padding:8px;font-size:.82em;}
 `;
 document.head.append(css);
 const state={mochila:{q:'',filter:'all'},construcao:{q:'',filter:'all'},diario:{q:'',filter:'all'}};
