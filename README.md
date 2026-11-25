@@ -2,9 +2,15 @@
 
 Protótipo jogável 3D em navegador (Three.js + TypeScript + Vite) baseado no `GDD_Mare_Perdida_v1.0.md`, cobrindo o núcleo de sobrevivência, construção naval, saves IndexedDB e Capítulo 1 (*Mar dos Destroços*).
 
+[Jogar Maré Perdida](https://jogoiarexx-blip.github.io/mare-perdida/)
+
+## Publicação
+
+Em **Settings → Pages**, selecione **GitHub Actions** como fonte. O workflow executa os testes, compila o jogo e publica `dist/` a cada envio para `main`. Também é possível executá-lo manualmente na aba **Actions**.
+
 ## Como executar
 ```bash
-npm install
+npm ci
 npm run dev      # inicia servidor local Vite
 npm run test     # executa testes unitários (Vitest)
 npm run build    # verifica tipos (tsc) e gera dist/ com base relativa './'
