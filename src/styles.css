@@ -443,3 +443,5 @@ body,
 
 /* Evita recomposição cara de blur no canvas móvel; mantém transparência do painel. */
 @media(pointer:coarse){.glass-card{backdrop-filter:none;}}
+
+.minimap{width:132px;max-width:30vw;margin:5px auto;text-align:center;padding:5px;pointer-events:none;}.minimap svg{display:block;width:100%;height:auto;}.minimap small{font-size:10px;color:var(--muted);}

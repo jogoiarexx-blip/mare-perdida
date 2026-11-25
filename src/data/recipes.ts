@@ -14,6 +14,7 @@ export type StructureKind =
   | 'rede_coleta'
   | 'vela'
   | 'ancora'
+  | 'leme'
   | 'radio'
   | 'cobertura'
   | 'horta'
@@ -246,6 +247,10 @@ export const RECIPES: RecipeDef[] = [
     ],
     placesStructure: 'ancora',
     structureMass: 35,
+  },
+  {
+    id:'build_leme',name:'Leme de navegação',description:'Assuma o leme com E/Ação. Direcional ou W/S e A/D para navegar, inclusive em marcha à ré.',bench:'construcao',
+    ingredients:[{itemId:'madeira',count:5},{itemId:'sucata',count:2},{itemId:'corda',count:2}],placesStructure:'leme',structureMass:22,
   },
   {
     id: 'build_radio',

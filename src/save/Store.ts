@@ -1,3 +1,4 @@
+import { validDiscoveredChunk } from '../world/Navigation';
 import { validResourceId } from '../world/IslandResources';
 import type { SerializedInventory } from '../player/Inventory';
 import type { SurvivalState } from '../player/Survival';
@@ -33,6 +34,7 @@ export interface WorldSaveData {
   raft: SerializedRaftGrid;
   quests: SerializedQuestEngine;
   depletedIslandResources?: string[];
+  discoveredChunks?:string[];
   worldFlags: {
     wreckLooted: boolean;
     buoyInspected: boolean;
@@ -100,7 +102,8 @@ export function validateSaveData(raw: unknown): raw is WorldSaveData {
     Boolean(obj.raft) &&
     Array.isArray(obj.raft?.foundations) &&
     Boolean(obj.quests) &&
-    (obj.depletedIslandResources===undefined || (Array.isArray(obj.depletedIslandResources) && obj.depletedIslandResources.every(validResourceId)))
+    (obj.depletedIslandResources===undefined || (Array.isArray(obj.depletedIslandResources) && obj.depletedIslandResources.every(validResourceId))) &&
+    (obj.discoveredChunks===undefined||(Array.isArray(obj.discoveredChunks)&&obj.discoveredChunks.every(validDiscoveredChunk)))
   );
 }
 

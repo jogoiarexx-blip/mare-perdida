@@ -16,6 +16,7 @@ import { BuildTargetPicker, evaluateBuild, type BuildTarget } from './raft/Build
 import { nearestGridEntry, FlotsamBuckets } from './raft/GridQueries';
 import { OceanRenderer } from './world/Ocean';
 import { ChunkManager } from './world/ChunkManager';
+import { Discovery,helmStep,bearing,cardinal,headingDegrees,minimapSvg } from './world/Navigation';
 import { WeatherSystem } from './world/Weather';
 import { SectorManager, type FlotsamEntity } from './world/SectorManager';
 import { SharkBoss } from './ai/SharkBoss';
@@ -48,6 +49,8 @@ export class Game {
   private weather!: WeatherSystem;
   private sector!: SectorManager;
   private chunks!: ChunkManager;
+  private readonly discovery=new Discovery();
+  private helmKey:string|null=null;
   private raftGrid = new RaftGrid(256);
   private raftRenderer = new RaftRenderer();
   private player!: PlayerController;
@@ -235,6 +238,8 @@ export class Game {
         if (this.modals.isOpen()) {
           this.modals.closeAll();
           this.resumeAfterMenu();
+        } else if(this.helmKey){
+          this.helmKey=null;this.resetMenuInput();
         } else if (this.buildRecipe) {
           this.exitBuildMode();
         } else {
@@ -246,7 +251,8 @@ export class Game {
       if (this.modals.isOpen()) return;
       this.keys.add(e.code);
 
-      if (e.code === 'KeyE') {
+      if (e.code === 'KeyM'&&!e.repeat) {this.hud.toggleMinimap();}
+      else if (e.code === 'KeyE'&&!e.repeat) {
         if (!this.hud.advanceDialogue()) this.handleInteract();
       } else if (e.code === 'KeyF') {
         this.handlePrimaryUse();
@@ -364,6 +370,7 @@ export class Game {
     this.worldId = `world_${Date.now()}`;
     this.seed = Math.floor(Math.random() * 900000) + 100000;
     this.chunks.reset(this.seed);
+    this.discovery.reset();this.discovery.visit(0,0);this.helmKey=null;
     this.chunks.update(0,0,9);
     this.epoch = 1;
     this.clock.restore({ tick: 0, elapsedSeconds: 0, timeOfDay: 0.35, dayCount: 1 });
@@ -411,6 +418,7 @@ export class Game {
     this.sharkRepelledCount = data.worldFlags.sharkRepelledCount;
     this.player.position.set(data.playerPosition.x, data.playerPosition.y, data.playerPosition.z);
     this.chunks.reset(this.seed,this.options.quality==='baixo',data.depletedIslandResources??[]);
+    this.discovery.reset(data.discoveredChunks??[]);this.discovery.visit(this.player.position.x,this.player.position.z);this.helmKey=null;
     this.chunks.update(this.player.position.x,this.player.position.z,9);
 
     for (const poi of this.sector.pois) {
@@ -429,20 +437,31 @@ export class Game {
     if (!this.started) return;
 
     this.chunks.update(this.player.position.x,this.player.position.z);
+    this.discovery.visit(this.player.position.x,this.player.position.z);
     this.clock.advance(dt);
     this.weather.update(this.clock.timeOfDay, this.raftRenderer.x, this.raftRenderer.z, dt);
 
     // Movimento da jangada por correnteza, vela e âncora + penalidade por sobrepeso
     const prevRaftX = this.raftRenderer.x;
     const prevRaftZ = this.raftRenderer.z;
+    const prevHeading=this.raftRenderer.heading;
+    if(this.helmKey&&this.raftGrid.modules.get(this.helmKey)?.kind!=='leme')this.helmKey=null;
+    const steering=Boolean(this.helmKey);
+    const steerX=(this.keys.has('KeyD')||this.keys.has('ArrowRight')?1:0)-(this.keys.has('KeyA')||this.keys.has('ArrowLeft')?1:0)+this.touchMoveX;
+    const steerY=(this.keys.has('KeyW')||this.keys.has('ArrowUp')?1:0)-(this.keys.has('KeyS')||this.keys.has('ArrowDown')?1:0)+this.touchMoveY;
     const buoyancy = StructureGraph.computeBuoyancy(this.raftGrid);
-    if (!this.raftGrid.isAnchorDropped()) {
+    if(steering){
+      const nav=helmStep(prevHeading,steerX,steerY,this.raftGrid.hasActiveSail(),this.raftGrid.isAnchorDropped(),dt,buoyancy.speedMultiplier);
+      if(this.raftCanMove(prevRaftX+nav.dx,prevRaftZ+nav.dz,nav.heading,prevRaftX,prevRaftZ,prevHeading)){
+        this.raftRenderer.heading=nav.heading;this.raftRenderer.x+=nav.dx;this.raftRenderer.z+=nav.dz;
+      }
+    } else if (!this.raftGrid.isAnchorDropped()) {
       const sailBoost = this.raftGrid.hasActiveSail() ? 1.55 : 0.32;
       const dirX = -Math.sin(this.raftRenderer.heading);
       const dirZ = -Math.cos(this.raftRenderer.heading);
       const nextX=this.raftRenderer.x+dirX*sailBoost*buoyancy.speedMultiplier*dt;
       const nextZ=this.raftRenderer.z+dirZ*sailBoost*buoyancy.speedMultiplier*dt;
-      if(!this.chunks.blocksRaft(nextX,nextZ)){this.raftRenderer.x=nextX;this.raftRenderer.z=nextZ;}
+      if(this.raftCanMove(nextX,nextZ,prevHeading,prevRaftX,prevRaftZ,prevHeading)){this.raftRenderer.x=nextX;this.raftRenderer.z=nextZ;}
     }
     this.raftRenderer.updateTransform(this.clock.elapsedSeconds, this.weather.stormFactor);
     const raftDeltaX = this.raftRenderer.x - prevRaftX;
@@ -464,10 +483,10 @@ export class Game {
     this.player.update(
       dt,
       {
-        forward: THREE.MathUtils.clamp(forward, -1, 1),
-        strafe: THREE.MathUtils.clamp(strafe, -1, 1),
-        jump,
-        sprint,
+        forward: steering?0:THREE.MathUtils.clamp(forward, -1, 1),
+        strafe: steering?0:THREE.MathUtils.clamp(strafe, -1, 1),
+        jump:steering?false:jump,
+        sprint:steering?false:sprint,
         yawDelta: this.yawDeltaAccum,
         pitchDelta: this.pitchDeltaAccum,
       },
@@ -479,7 +498,8 @@ export class Game {
       raftDeltaX,
       raftDeltaZ,
       (x,z)=>this.chunks.groundHeight(x,z),
-      (x,z,y,fromX,fromZ)=>this.chunks.blocksMovement(x,z,y,fromX,fromZ)
+      (x,z,y,fromX,fromZ)=>this.chunks.blocksMovement(x,z,y,fromX,fromZ),
+      this.raftRenderer.heading-prevHeading
     );
     this.yawDeltaAccum = 0;
     this.pitchDeltaAccum = 0;
@@ -487,7 +507,7 @@ export class Game {
     // Sobrevivência
     const sheltered = this.raftGrid.hasModuleKind('cobertura');
     this.survival.update(dt, {
-      sprinting: sprint && (Math.abs(forward) > 0.1 || Math.abs(strafe) > 0.1),
+      sprinting: !steering && sprint && (Math.abs(forward) > 0.1 || Math.abs(strafe) > 0.1),
       underwater: this.player.underwater,
       sheltered,
     });
@@ -575,6 +595,21 @@ export class Game {
     }
   }
 
+  /** Testa os centros das fundações, permitindo sair de uma posição antiga encalhada. */
+  private raftCanMove(x:number,z:number,heading:number,oldX:number,oldZ:number,oldHeading:number):boolean{
+    if(x===oldX&&z===oldZ&&heading===oldHeading)return true;
+    const c=Math.cos(heading),s=Math.sin(heading),oc=Math.cos(oldHeading),os=Math.sin(oldHeading);
+    for(const f of this.raftGrid.foundations.values()){
+      const wx=x+f.gx*c+f.gz*s,wz=z-f.gx*s+f.gz*c;
+      const height=this.chunks.groundHeight(wx,wz);
+      if(height!==null&&height>.35){
+        const previous=this.chunks.groundHeight(oldX+f.gx*oc+f.gz*os,oldZ-f.gx*os+f.gz*oc);
+        if(previous===null||previous<=.35||height>previous+.00001)return false;
+      }
+    }
+    return true;
+  }
+
   private updateCollectorNets(): void {
     // Bases pequenas mantêm o caminho direto; bases grandes usam grade espacial.
     const nets=[];
@@ -634,6 +669,7 @@ export class Game {
   }
 
   private handlePrimaryUse(): void {
+    if(this.helmKey)return;
     if (this.buildRecipe) {
       this.updateBuildGhost();
       if (this.ghostTarget) this.placeBuildAtGhost();
@@ -722,6 +758,7 @@ export class Game {
   }
 
   private handleInteract(): void {
+    if(this.helmKey){this.helmKey=null;this.resetMenuInput();this.hud.pushToast('Leme liberado.','info');return;}
     // 1. Verificar POIs próximos (destroço do rádio / boia vermelha)
     for (const poi of this.sector.pois) {
       const d = Math.hypot(poi.x - this.player.position.x, poi.z - this.player.position.z);
@@ -802,6 +839,11 @@ export class Game {
           this.bus.emit('radioTuned', { frequency: 'lia_ch1' });
           this.sfx.playRadio();
           return;
+        }
+        case 'leme': {
+          if(!this.player.grounded||this.player.inWater){this.hud.pushToast('Suba na jangada para assumir o leme.','warn');return;}
+          this.exitBuildMode();this.resetMenuInput();this.helmKey=cellKey(nearestMod.gx,nearestMod.gz);
+          this.hud.pushToast('Leme: W/S avançar e recuar, A/D virar. E para sair. No celular use o direcional.','info');return;
         }
         case 'vela': {
           nearestMod.active = !nearestMod.active;
@@ -974,6 +1016,7 @@ export class Game {
   }
 
   private handlePlayerDeath(): void {
+    this.helmKey=null;
     const lost = this.survival.difficulty === 'historia' ? [] : this.inventory.applyNormalDeathPenalty();
     this.survival.respawn();
     if (this.raftGrid.foundations.size === 0) {
@@ -1086,6 +1129,7 @@ export class Game {
   }
 
   private openPanel(tab: PanelTab): void {
+    this.helmKey=null;
     if (!this.started) return;
     this.resetMenuInput();
     if (document.pointerLockElement === this.canvas) {
@@ -1166,6 +1210,7 @@ export class Game {
       raft: this.raftGrid.serialize(),
       quests: this.quests.serialize(),
       depletedIslandResources:this.chunks.serializeResources(),
+      discoveredChunks:this.discovery.serialize(),
       worldFlags: {
         wreckLooted: this.wreckLooted,
         buoyInspected: this.buoyInspected,
@@ -1223,6 +1268,9 @@ export class Game {
       const distance=Math.max(0,Math.round(Math.hypot(island.x-this.player.position.x,island.z-this.player.position.z)-island.radius));
       if(distance<100)compassText+=' · Ilha '+distance+' m';
     }
+    const hd=headingDegrees(this.raftRenderer.heading);
+    compassText+=' · Proa '+cardinal(hd)+' '+Math.round(hd)+'°';
+    if(island){const b=bearing(island.x-this.player.position.x,island.z-this.player.position.z);compassText+=' · Ilha a '+cardinal(b);}
     this.hud.update({
       survival: this.survival,
       inventory: this.inventory,
@@ -1232,6 +1280,7 @@ export class Game {
       dayCount: this.clock.dayCount,
       weather: this.weather.weather,
       compassText,
+      minimap:this.hud.isMinimapVisible()?minimapSvg(this.seed,this.discovery,this.player.position.x,this.player.position.z,this.raftRenderer.x,this.raftRenderer.z,this.player.yaw):'',
       promptText: prompt,
       buildModeLabel: this.buildRecipe ? this.buildRecipe.name : null,
       saveStatus: this.saveStatus,
@@ -1240,6 +1289,7 @@ export class Game {
   }
 
   private computePromptText(): string {
+    if(this.helmKey)return this.raftGrid.isAnchorDropped()?'Âncora baixada — [E/Ação] sair do leme':'Leme · W/S avançar/recuar · A/D virar · [E/Ação] sair';
     if (this.buildRecipe && !this.ghostTarget) return 'Aponte para o convés ou uma borda próxima (até 5,5 m).';
     if (this.buildRecipe && this.ghostTarget && !this.ghostTarget.valid) return this.ghostTarget.reason;
     if (this.buildRecipe?.placesStructure === 'borda_reforcada') {
@@ -1266,6 +1316,7 @@ export class Game {
         churrasqueira: '[E] Assar peixe',
         cama: '[E] Descansar',
         radio: '[E] Sintonizar Rádio (Lia)',
+        leme:'[E] Assumir leme',
         vela: mod.active ? '[E] Recolher vela' : '[E] Abrir vela',
         ancora: mod.active ? '[E] Subir âncora' : '[E] Lançar âncora',
         horta: mod.readyCount > 0 ? '[E] Colher fruto salino' : '[E] Plantar semente',

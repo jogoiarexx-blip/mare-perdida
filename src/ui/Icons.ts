@@ -1,6 +1,7 @@
 // Ícones originais vetoriais, sem fontes ou bibliotecas externas.
 const GLYPHS: Record<string, readonly [string,string]> = {
   "machado": ["#c6b49a", "<path d=\"m4 21 10-14 3 2-10 14ZM11 5q4-4 10-2l1 6-5 5-5-5Z\"/>"],
+  "leme": ["#b8d4de","<circle cx=\"12\" cy=\"12\" r=\"8\"/><circle cx=\"12\" cy=\"12\" r=\"2\"/><path d=\"M12 1v9m0 4v9M1 12h9m4 0h9M4 4l6 6m4 4 6 6M4 20l6-6m4-4 6-6\"/>"],
   "madeira": [
     "#ce935c",
     "<path d=\"M3 8 16 3l5 5v10L8 22l-5-5Z\"/><path d=\"m3 8 5 5 13-5M8 13v9m3-10 7-3m-7 7 7-3\"/>"

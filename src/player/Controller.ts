@@ -79,15 +79,19 @@ export class PlayerController {
     raftDeltaX: number,
     raftDeltaZ: number,
     groundHeight: (x:number,z:number)=>number|null = ()=>null,
-    blocksMovement:(x:number,z:number,y:number,fromX:number,fromZ:number)=>boolean=()=>false
+    blocksMovement:(x:number,z:number,y:number,fromX:number,fromZ:number)=>boolean=()=>false,
+    raftHeadingDelta=0
   ): void {
     this.yaw -= input.yawDelta;
     this.pitch = THREE.MathUtils.clamp(this.pitch - input.pitchDelta, -1.32, 1.28);
 
     // Se estiver em pé sobre a jangada, acompanha o deslocamento do convés
     if (this.grounded&&this.onRaft) {
-      this.position.x += raftDeltaX;
-      this.position.z += raftDeltaZ;
+      const dx=this.position.x-(raft.x-raftDeltaX),dz=this.position.z-(raft.z-raftDeltaZ);
+      const c=Math.cos(raftHeadingDelta),s=Math.sin(raftHeadingDelta);
+      this.position.x=raft.x+dx*c+dz*s;
+      this.position.z=raft.z-dx*s+dz*c;
+      this.yaw+=raftHeadingDelta;
     }
 
     const sy=Math.sin(this.yaw),cy=Math.cos(this.yaw);

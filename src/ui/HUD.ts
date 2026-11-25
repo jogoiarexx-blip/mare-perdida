@@ -14,6 +14,7 @@ export interface HudSnapshot {
   dayCount: number;
   weather: string;
   compassText: string;
+  minimap?:string;
   promptText: string;
   buildModeLabel: string | null;
   saveStatus: string;
@@ -27,6 +28,10 @@ export class HUD {
   private readonly root: HTMLElement;
   private vitalsEl: HTMLElement;
   private compassEl: HTMLElement;
+  private minimapEl:HTMLElement;
+  private mapVisible=false;
+  isMinimapVisible(){return this.mapVisible;}
+  toggleMinimap(){this.mapVisible=!this.mapVisible;this.minimapEl.classList.toggle('hidden',!this.mapVisible);}
   private questEl: HTMLElement;
   private promptEl: HTMLElement;
   private hotbarEl: HTMLElement;
@@ -58,12 +63,14 @@ export class HUD {
           <button class="btn" data-tab="mochila" title="Inventário e Fabricação (I)">${gameIcon('mochila')} [I]</button>
           <button class="btn" data-tab="construcao" title="Construir na jangada (B)">${gameIcon('construcao')} [B]</button>
           <button class="btn" data-tab="diario" title="Diário de Missões (J)">${gameIcon('diario')} [J]</button>
+          <button class="btn" data-map="1" title="Minimapa (M)">${gameIcon('carta_verde')} [M]</button>
           <button class="btn" data-menu="1" title="Menu e Saves (Esc)">${gameIcon('opcoes')} [Esc]</button>
         </div>
       </div>
 
       <div class="hud-top-center">
         <div class="glass-card compass-bar" id="hud-compass"></div>
+        <div class="glass-card minimap hidden" id="hud-minimap"></div>
       </div>
 
       <div class="hud-top-right">
@@ -95,6 +102,7 @@ export class HUD {
 
     this.vitalsEl = this.root.querySelector('#hud-vitals')!;
     this.compassEl = this.root.querySelector('#hud-compass')!;
+    this.minimapEl=this.root.querySelector('#hud-minimap')!;
     this.questEl = this.root.querySelector('#hud-quest')!;
     this.promptEl = this.root.querySelector('#hud-prompt')!;
     this.hotbarEl = this.root.querySelector('#hud-hotbar')!;
@@ -107,6 +115,7 @@ export class HUD {
       if (!btn) return;
       const tab = btn.getAttribute('data-tab') as 'mochila' | 'construcao' | 'diario' | 'opcoes' | null;
       if (tab) this.onOpenPanel?.(tab);
+      if(btn.getAttribute('data-map'))this.toggleMinimap();
       if (btn.getAttribute('data-menu')) this.onOpenMenu?.();
     });
 
@@ -211,6 +220,7 @@ export class HUD {
   }
 
   update(snap: HudSnapshot): void {
+    if(this.mapVisible&&snap.minimap)this.updateMarkup(this.minimapEl,snap.minimap);
     const s = snap.survival;
     const rows = [
       { label: 'Saúde', icon: 'saude', val: s.health, max: 100, color: '#ef4444' },

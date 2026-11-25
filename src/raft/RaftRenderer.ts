@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { plankDeck, reinforcedDeckFrame } from '../render/DetailGeometry';
+import { plankDeck, reinforcedDeckFrame, combine } from '../render/DetailGeometry';
 import { collectionNet, plantGeometry, grillGeometry, radioFace, roofGeometry } from '../render/EquipmentGeometry';
 import { cellKey, RaftGrid, type PlacedModule } from './Grid';
 import { getWaveHeight, getWaveNormal } from '../world/Ocean';
@@ -198,6 +198,13 @@ export class RaftRenderer {
         sail.position.set(0, 1.35, 0.12);
         g.add(mast, sail);
         break;
+      }
+      case 'leme': {
+        const base=new THREE.Mesh(combine([new THREE.BoxGeometry(.52,.12,.52),new THREE.BoxGeometry(.16,.92,.18).translate(0,.46,0)]),woodMat);
+        const parts:THREE.BufferGeometry[]=[new THREE.TorusGeometry(.31,.035,6,16)];
+        for(let i=0;i<6;i++)parts.push(new THREE.BoxGeometry(.045,.68,.045).rotateZ(i*Math.PI/3));
+        const wheel=new THREE.Mesh(combine(parts),metalMat);wheel.position.set(0,.94,.11);
+        g.add(base,wheel);break;
       }
       case 'ancora': {
         const winch = new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.45, 0.65), woodMat);
