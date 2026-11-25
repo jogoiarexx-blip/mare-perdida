@@ -1215,6 +1215,13 @@ export class Game {
           this.inventory.selectHotbar(idx);
         }
       },
+      onSwapSlots: (from, to) => {
+        if (!Number.isInteger(from) || !Number.isInteger(to) || from < 0 || to < 0 ||
+            from >= this.inventory.capacity || to >= this.inventory.capacity || from === to || !this.inventory.slots[from]) return;
+        this.inventory.swapSlots(from, to);
+        this.modals.refreshIfOpen(this.buildPanelContext());
+        this.updateHud();
+      },
       onSplitSlot: (idx) => {
         if (this.inventory.splitSlot(idx)) {
           this.modals.refreshIfOpen(this.buildPanelContext());
