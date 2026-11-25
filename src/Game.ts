@@ -15,6 +15,7 @@ import { RaftRenderer } from './raft/RaftRenderer';
 import { BuildTargetPicker, evaluateBuild, type BuildTarget } from './raft/BuildTarget';
 import { nearestGridEntry, FlotsamBuckets } from './raft/GridQueries';
 import { OceanRenderer } from './world/Ocean';
+import { ChunkManager } from './world/ChunkManager';
 import { WeatherSystem } from './world/Weather';
 import { SectorManager, type FlotsamEntity } from './world/SectorManager';
 import { SharkBoss } from './ai/SharkBoss';
@@ -46,6 +47,7 @@ export class Game {
   private ambient!: MarineAmbient;
   private weather!: WeatherSystem;
   private sector!: SectorManager;
+  private chunks!: ChunkManager;
   private raftGrid = new RaftGrid(256);
   private raftRenderer = new RaftRenderer();
   private player!: PlayerController;
@@ -131,6 +133,9 @@ export class Game {
     this.ambient = new MarineAmbient(this.scene, false);
 
     this.weather = new WeatherSystem(this.scene, !low);
+    this.chunks=new ChunkManager(this.seed,low);
+    this.scene.add(this.chunks.group);
+    this.chunks.update(0,0,9);
     this.sector = new SectorManager(this.seed);
     this.scene.add(this.sector.group);
     this.sector.seedInitialFlotsam(0, 0);
@@ -358,6 +363,8 @@ export class Game {
   private startNewWorld(difficulty: Difficulty): void {
     this.worldId = `world_${Date.now()}`;
     this.seed = Math.floor(Math.random() * 900000) + 100000;
+    this.chunks.reset(this.seed);
+    this.chunks.update(0,0,9);
     this.epoch = 1;
     this.clock.restore({ tick: 0, elapsedSeconds: 0, timeOfDay: 0.35, dayCount: 1 });
     this.raftGrid = new RaftGrid(this.options.quality === 'baixo' ? 64 : 256);
@@ -403,6 +410,8 @@ export class Game {
     this.buoyInspected = data.worldFlags.buoyInspected;
     this.sharkRepelledCount = data.worldFlags.sharkRepelledCount;
     this.player.position.set(data.playerPosition.x, data.playerPosition.y, data.playerPosition.z);
+    this.chunks.reset(this.seed);
+    this.chunks.update(this.player.position.x,this.player.position.z,9);
 
     for (const poi of this.sector.pois) {
       if (poi.id === 'destrocos_radio') poi.looted = this.wreckLooted;
@@ -419,6 +428,7 @@ export class Game {
   private fixedUpdate(dt: number): void {
     if (!this.started) return;
 
+    this.chunks.update(this.player.position.x,this.player.position.z);
     this.clock.advance(dt);
     this.weather.update(this.clock.timeOfDay, this.raftRenderer.x, this.raftRenderer.z, dt);
 
@@ -430,8 +440,9 @@ export class Game {
       const sailBoost = this.raftGrid.hasActiveSail() ? 1.55 : 0.32;
       const dirX = -Math.sin(this.raftRenderer.heading);
       const dirZ = -Math.cos(this.raftRenderer.heading);
-      this.raftRenderer.x += dirX * sailBoost * buoyancy.speedMultiplier * dt;
-      this.raftRenderer.z += dirZ * sailBoost * buoyancy.speedMultiplier * dt;
+      const nextX=this.raftRenderer.x+dirX*sailBoost*buoyancy.speedMultiplier*dt;
+      const nextZ=this.raftRenderer.z+dirZ*sailBoost*buoyancy.speedMultiplier*dt;
+      if(!this.chunks.blocksRaft(nextX,nextZ)){this.raftRenderer.x=nextX;this.raftRenderer.z=nextZ;}
     }
     this.raftRenderer.updateTransform(this.clock.elapsedSeconds, this.weather.stormFactor);
     const raftDeltaX = this.raftRenderer.x - prevRaftX;
@@ -466,7 +477,8 @@ export class Game {
       this.weather.stormFactor,
       this.survival.stamina > 8,
       raftDeltaX,
-      raftDeltaZ
+      raftDeltaZ,
+      (x,z)=>this.chunks.groundHeight(x,z)
     );
     this.yawDeltaAccum = 0;
     this.pitchDeltaAccum = 0;
@@ -549,7 +561,7 @@ export class Game {
     if(!idle&&this.shadowElapsed>=(low?.125:.05)){
       this.renderer.shadowMap.needsUpdate=true;this.shadowElapsed=0;
     }
-    this.ocean.update(this.raftRenderer.x, this.raftRenderer.z, this.clock.elapsedSeconds, this.weather.stormFactor);
+    this.ocean.update(this.player.position.x, this.player.position.z, this.clock.elapsedSeconds, this.weather.stormFactor);
     this.player.applyToCamera(this.camera, this.clock.elapsedSeconds, this.options.cameraBob);
     if (this.started && !this.modals.isOpen()) this.updateBuildGhost();
     else this.raftRenderer.hideGhost();
@@ -1084,6 +1096,8 @@ export class Game {
     this.store.saveOptions(opts);
     if(this.activeQuality!==opts.quality){
       const low=opts.quality==='baixo';
+      this.chunks.setQuality(low);
+      this.chunks.update(this.player.position.x,this.player.position.z,9);
       this.scene.remove(this.ocean.mesh);this.ocean.dispose();
       this.ocean=new OceanRenderer(low);this.scene.add(this.ocean.mesh);
       this.resolution=new AdaptiveResolution(low,this.isMobileDevice(),window.devicePixelRatio||1);
@@ -1182,6 +1196,11 @@ export class Game {
       compassText = `${nextPoi.id === 'destrocos_radio' ? 'Destroços Rádio' : 'Boia Vermelha'} (${dist} m)`;
     }
 
+    const island=this.chunks.nearestIsland(this.player.position.x,this.player.position.z);
+    if(island){
+      const distance=Math.max(0,Math.round(Math.hypot(island.x-this.player.position.x,island.z-this.player.position.z)-island.radius));
+      if(distance<100)compassText+=' · Ilha '+distance+' m';
+    }
     this.hud.update({
       survival: this.survival,
       inventory: this.inventory,

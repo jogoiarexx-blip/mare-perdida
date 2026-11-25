@@ -11,6 +11,7 @@
 | CP06 | Transporte P2P base | EM TESTE | Diagnóstico WebRTC no menu com convite/resposta manual, canal de dados e ping bidirecional. Ainda faltam sinalização por sala, reentrada por token e validação em redes distintas e com TURN. |
 | CP07 | Autoridade e coop | PENDENTE | Depende do transporte e da sincronização autoritativa. |
 | CP08 | Capítulo 1 (M01–M05, S001–S010, B01 Mandíbula Branca) | EM TESTE | Fluxo lógico validado em `quest-engine.test.ts` (2/2); pendente playthrough humano completo do chefe B01 em 3D |
+| CP09 | Streaming e biomas | EM TESTE — etapa 1 | Setores de 128 m, ilhas determinísticas, LOD, descarregamento e solo navegável. Pendentes deltas persistentes, biomas, origem flutuante, perfil real e coop. |
 
 ## Evidências do CP06
 
@@ -61,3 +62,7 @@
 
 ### Desempenho 2 — CPU, consultas e detritos
 - Sincronização estrutural completa deixa de ocorrer 20 vezes/s: construção, reparo, restauração e mordida atualizam a malha quando necessário; hortas atualizam apenas seu módulo. Busca de equipamentos e fundações próximas usa grade em bases grandes; redes numerosas consultam buckets de detritos, mantendo raio e ordem de coleta. Pool de meshes por tipo de detrito e mapa por ID evitam alocações e coleta duplicada; vetores temporários reutilizados e distâncias quadráticas. Testes de regressão adicionados. Medição real de FPS/GC e teste visual ainda pendentes.
+
+
+### CP09.1 — primeira infraestrutura de mundo
+- Chunks lógicos de 128 m, raios 1/2 e retenção por histerese, criação incremental e descarte de geometrias por ilha. Primeira ilha próxima (40,-67), demais por seed, margem entre setores, praia e terreno radial, coqueiros e pedras instanciados. LOD por distância, oceano acompanha jogador, colisão de altura no solo e bloqueio simples do centro da jangada em terra. Layout independente do carregamento e reconstruído com seed do save. Sem coleta terrestre, colisão de árvores/pedras, direção de navegação adicional, deltas ou origem flutuante nesta etapa. Testes de layout, 12 transições, triângulos e solo adicionados; teste manual e medição de memória/FPS pendentes.

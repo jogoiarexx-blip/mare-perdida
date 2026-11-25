@@ -23,6 +23,7 @@ export class PlayerController {
   pitch = -0.18;
   thirdPerson = false;
   grounded = false;
+  private onRaft=false;
   inWater = false;
   underwater = false;
 
@@ -64,6 +65,7 @@ export class PlayerController {
     const wp = raft.localToWorld(safe.x, safe.y + 0.5, safe.z);
     this.position.copy(wp);
     this.velocity.set(0, 0, 0);
+    this.onRaft=false;this.grounded=false;
   }
 
   update(
@@ -75,13 +77,14 @@ export class PlayerController {
     stormFactor: number,
     canSprint: boolean,
     raftDeltaX: number,
-    raftDeltaZ: number
+    raftDeltaZ: number,
+    groundHeight: (x:number,z:number)=>number|null = ()=>null
   ): void {
     this.yaw -= input.yawDelta;
     this.pitch = THREE.MathUtils.clamp(this.pitch - input.pitchDelta, -1.32, 1.28);
 
     // Se estiver em pé sobre a jangada, acompanha o deslocamento do convés
-    if (this.grounded) {
+    if (this.grounded&&this.onRaft) {
       this.position.x += raftDeltaX;
       this.position.z += raftDeltaZ;
     }
@@ -96,7 +99,9 @@ export class PlayerController {
     const cellBelow = grid.foundations.get(cellKey(localCell.gx, localCell.gz));
     const deckTopY = raft.root.position.y + 0.21;
 
-    this.inWater = !cellBelow && this.position.y <= waveY + 0.18;
+    const land=groundHeight(this.position.x,this.position.z);
+    const dryLand=land!==null&&land>waveY+.03;
+    this.inWater = !cellBelow && !dryLand && this.position.y <= waveY + 0.18;
     this.underwater = this.inWater && this.position.y + this.eyeHeight < waveY + 0.05;
 
     const baseSpeed = this.inWater ? 3.8 : input.sprint && canSprint ? 6.6 : 4.5;
@@ -125,12 +130,18 @@ export class PlayerController {
     // Colisão firme com o convés da jangada para nunca cair pelo chão
     const postCell = raft.worldToLocalGrid(this.position.x, this.position.z);
     const onFoundation = grid.foundations.has(cellKey(postCell.gx, postCell.gz));
-    if (onFoundation && this.position.y <= deckTopY + 0.14 && this.velocity.y <= 0.8) {
-      this.position.y = deckTopY;
+    const landAfter=groundHeight(this.position.x,this.position.z);
+    const waveAfter=getWaveHeight(this.position.x,this.position.z,timeSec,stormFactor);
+    const landSurface=landAfter!==null&&landAfter>waveAfter+.03?landAfter:null;
+    const floor=onFoundation?Math.max(deckTopY,landSurface??-Infinity):landSurface;
+    if (floor!==null && this.position.y <= floor + .18 && this.velocity.y <= .8) {
+      this.position.y = floor;
       this.velocity.y = 0;
       this.grounded = true;
-    } else if (!onFoundation) {
-      this.grounded = false;
+      this.onRaft=onFoundation&&deckTopY>=(landSurface??-Infinity);
+      this.inWater=false;this.underwater=false;
+    } else {
+      this.grounded = false;this.onRaft=false;
       // Limite inferior na água para não afundar infinitamente
       if (this.position.y < waveY - 3.0) {
         this.position.y = waveY - 3.0;
