@@ -249,8 +249,17 @@ export class Game {
       this.keys.delete(e.code);
     });
 
-    this.canvas.addEventListener('click', () => {
+    window.addEventListener('blur', () => {
+      this.keys.clear();
+      this.lastDragLook = null;
+      this.touchMoveX = 0;
+      this.touchMoveY = 0;
+      this.touchJumpQueued = false;
+    });
+
+    this.canvas.addEventListener('click', (event) => {
       if (!this.started || this.modals.isOpen()) return;
+      if (event instanceof PointerEvent && event.pointerType === 'touch') return;
       if (document.pointerLockElement !== this.canvas && !this.isMobileDevice()) {
         this.canvas.requestPointerLock?.();
       }
@@ -280,6 +289,9 @@ export class Game {
       this.lastDragLook = { x: e.clientX, y: e.clientY };
     });
     this.canvas.addEventListener('pointerup', () => {
+      this.lastDragLook = null;
+    });
+    this.canvas.addEventListener('pointercancel', () => {
       this.lastDragLook = null;
     });
   }

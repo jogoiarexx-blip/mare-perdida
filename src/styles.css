@@ -42,6 +42,7 @@ body,
   display: block;
   width: 100%;
   height: 100%;
+  touch-action: none;
 }
 
 #ui-root {
@@ -53,6 +54,30 @@ body,
 
 .hud-interactive {
   pointer-events: auto;
+}
+
+.modal-card.p2p-dialog {
+  width: min(540px, calc(100% - 24px));
+  color: var(--text);
+  overflow: auto;
+}
+
+.p2p-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.65);
+}
+
+.p2p-dialog textarea {
+  width: 100%;
+  color: var(--text);
+  background: var(--bg-glass);
+  border: 1px solid var(--border);
+  user-select: text;
+}
+
+.p2p-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
 .hud-top-left {

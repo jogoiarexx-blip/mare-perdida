@@ -79,11 +79,26 @@ export class Modals {
             <input type="file" id="mm-import" accept=".json,application/json" style="display:none;" />
           </label>
         </div>
+        <button class="btn" id="mm-p2p">Testar conexão P2P</button>
         <div style="font-size:0.8em;color:var(--muted);margin-top:8px;">
           Controles: WASD andar · Espaço pular/nadar · Click/F usar ferramenta · E interagir · B construir · I mochila · J diário · V 1ª/3ª pessoa
         </div>
       </div>
     `;
+    const p2p = this.menuBackdrop.querySelector<HTMLButtonElement>('#mm-p2p');
+    p2p?.addEventListener('click', async () => {
+      p2p.disabled = true;
+      try {
+        const { openPeerDiagnostic } = await import('./PeerDiagnostic');
+        openPeerDiagnostic(() => {
+          p2p.disabled = false;
+          p2p.focus();
+        });
+      } catch {
+        p2p.disabled = false;
+        p2p.textContent = 'Falha ao abrir. Tentar conexão P2P novamente';
+      }
+    });
     this.menuBackdrop.querySelector('#mm-continue')?.addEventListener('click', () => {
       this.closeAll();
       params.onContinue();

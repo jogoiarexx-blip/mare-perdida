@@ -27,6 +27,12 @@ npm run build    # verifica tipos (tsc) e gera dist/ com base relativa './'
 
 No mobile ou quando ativado em *Opções*, o joystick virtual e os botões de ação aparecem automaticamente.
 
+## Testar conexão P2P
+
+No menu inicial, abra **Testar conexão P2P** em dois navegadores. No primeiro, gere um convite e envie o código à outra pessoa. No segundo, cole o convite, gere uma resposta e devolva o código. No primeiro, cole e aplique a resposta. Use **Medir latência** após conectar. Para repetir depois de desconectar, gere um novo convite.
+
+O diagnóstico usa STUN público do Google para tentar uma conexão direta. Os códigos podem conter endereços de rede, então compartilhe-os apenas com alguém de confiança. A sessão de teste troca apenas mensagens de latência. Salas automáticas, TURN e jogo cooperativo continuam pendentes.
+
 ## Estrutura
 - `src/core/`: `Clock`, `EventBus`, `GameLoop`, `SeededRng`
 - `src/data/`: catálogo de itens, receitas, missões do Cap. 1 (`M01–M05`, `S001–S010`) e validador DAG
