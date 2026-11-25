@@ -18,6 +18,7 @@ export interface PanelContext {
   onSelectBuild: (kind: StructureKind, recipe: RecipeDef) => void;
   onUseInventorySlot: (index: number) => void;
   onMoveToHotbar: (index: number) => void;
+  onSwapSlots: (from: number, to: number) => void;
   onSplitSlot: (index: number) => void;
   onOptionsChanged: (opts: GameOptions) => void;
   onManualSave: () => void;
@@ -250,7 +251,7 @@ export class Modals {
       <div class="grid-2">
         <div>
           <h3 style="margin-top:0;">Mochila (${ctx.inventory.capacity} slots)</h3>
-          <div style="font-size:0.8em;color:var(--muted);margin-bottom:8px;">Clique para usar/mover para barra · Shift+Click divide pilha.</div>
+          <div style="font-size:0.8em;color:var(--muted);margin-bottom:8px;">Arraste ou selecione dois espaços para organizar. Use o botão para consumir/equipar.</div>
           <div class="inv-grid">${slotsHtml}</div>
         </div>
         <div>
@@ -260,21 +261,60 @@ export class Modals {
       </div>
     `;
 
-    body.querySelectorAll('[data-slot]').forEach((el) => {
-      el.addEventListener('click', (ev) => {
-        const idx = Number(el.getAttribute('data-slot'));
-        if ((ev as MouseEvent).shiftKey) ctx.onSplitSlot(idx);
-        else {
-          const slot = ctx.inventory.slots[idx];
-          if (slot && (ITEMS[slot.itemId]?.hungerRestore !== undefined || ITEMS[slot.itemId]?.thirstRestore !== undefined)) {
-            ctx.onUseInventorySlot(idx);
-          } else {
-            ctx.onMoveToHotbar(idx);
-          }
-        }
-      });
-    });
 
+    // Seleção explícita: nenhum alimento é consumido ao apenas tocar em um slot.
+    {
+      const grid = body.querySelector<HTMLElement>('.inv-grid');
+      if (grid) {
+        const tiles = Array.from(grid.querySelectorAll<HTMLElement>('[data-slot]'));
+        let selected = -1, dragged = -1;
+        const tools = document.createElement('div');
+        tools.className = 'mare-inventory-actions';
+        tools.innerHTML = '<div class="mare-inventory-hint" aria-live="polite"></div><div class="mare-inventory-buttons"><button type="button" class="btn primary" data-inv-use>Usar / equipar</button><button type="button" class="btn" data-inv-split>Dividir pilha</button><button type="button" class="btn" data-inv-cancel>Cancelar</button></div>';
+        grid.after(tools);
+        const hint = tools.querySelector<HTMLElement>('.mare-inventory-hint')!;
+        const use = tools.querySelector<HTMLButtonElement>('[data-inv-use]')!;
+        const split = tools.querySelector<HTMLButtonElement>('[data-inv-split]')!;
+        const cancel = tools.querySelector<HTMLButtonElement>('[data-inv-cancel]')!;
+        const paint = () => {
+          const slot = ctx.inventory.slots[selected];
+          for (const tile of tiles) {
+            const idx = Number(tile.dataset.slot);
+            tile.classList.toggle('mare-slot-picked',idx===selected);
+            tile.setAttribute('aria-pressed',String(idx===selected));
+            tile.setAttribute('aria-label',(idx<8?'Barra rápida '+(idx+1):'Mochila '+(idx+1))+': '+tile.title);
+          }
+          hint.textContent = slot ? (ITEMS[slot.itemId]?.name ?? slot.itemId)+' selecionado. Toque no destino para trocar.' : 'Selecione um item e toque no destino, ou arraste com o mouse.';
+          use.disabled = !slot; split.disabled = !slot || slot.count<2 || !ctx.inventory.slots.includes(null); cancel.disabled = selected<0;
+        };
+        const move = (from: number,to: number) => {
+          if (from===to || !Number.isInteger(from) || !Number.isInteger(to) || from<0 || to<0 || from>=ctx.inventory.capacity || to>=ctx.inventory.capacity || !ctx.inventory.slots[from]) { selected=-1;paint();return; }
+          selected=-1; dragged=-1;
+          ctx.onSwapSlots(from,to);
+        };
+        const pick = (idx: number) => {
+          if (selected===idx) {selected=-1;paint();return;}
+          if (selected>=0 && ctx.inventory.slots[selected]) {move(selected,idx);return;}
+          if (ctx.inventory.slots[idx]) selected=idx;
+          paint();
+        };
+        for(const tile of tiles) {
+          const idx=Number(tile.dataset.slot);
+          tile.setAttribute('role','button');tile.tabIndex=0;tile.draggable=Boolean(ctx.inventory.slots[idx]);
+          tile.addEventListener('click',ev=>{if(ev.shiftKey){ctx.onSplitSlot(idx);return;}pick(idx);});
+          tile.addEventListener('keydown',ev=>{if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();ev.stopPropagation();pick(idx);}});
+          tile.addEventListener('dragstart',ev=>{if(!ctx.inventory.slots[idx]){ev.preventDefault();return;}dragged=idx;selected=idx;paint();ev.dataTransfer?.setData('text/plain',String(idx));if(ev.dataTransfer)ev.dataTransfer.effectAllowed='move';});
+          tile.addEventListener('dragover',ev=>{if(dragged<0)return;ev.preventDefault();if(ev.dataTransfer)ev.dataTransfer.dropEffect='move';tile.classList.add('mare-slot-target');});
+          tile.addEventListener('dragleave',()=>tile.classList.remove('mare-slot-target'));
+          tile.addEventListener('drop',ev=>{ev.preventDefault();tile.classList.remove('mare-slot-target');if(dragged>=0)move(dragged,idx);});
+          tile.addEventListener('dragend',()=>{dragged=-1;for(const cell of tiles)cell.classList.remove('mare-slot-target');});
+        }
+        use.addEventListener('click',()=>{const idx=selected,slot=ctx.inventory.slots[idx];if(!slot)return;const def=ITEMS[slot.itemId];selected=-1;paint();if(def&&(def.hungerRestore!==undefined||def.thirstRestore!==undefined||def.healthRestore!==undefined))ctx.onUseInventorySlot(idx);else ctx.onMoveToHotbar(idx);});
+        split.addEventListener('click',()=>{if(selected>=0)ctx.onSplitSlot(selected);});
+        cancel.addEventListener('click',()=>{selected=-1;paint();});
+        paint();
+      }
+    }
     body.querySelectorAll('[data-craft]').forEach((el) => {
       el.addEventListener('click', () => {
         const id = el.getAttribute('data-craft');
