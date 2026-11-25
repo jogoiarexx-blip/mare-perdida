@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { sharkBody, sharkBelly, sharkTail, sharkEyes } from '../render/DetailGeometry';
+import { sharkBody, sharkBelly, sharkTail, sharkEyes, sharkGills } from '../render/DetailGeometry';
 import type { EventBus } from '../core/EventBus';
 import type { RaftGrid } from '../raft/Grid';
 import type { RaftRenderer } from '../raft/RaftRenderer';
@@ -38,7 +38,8 @@ export class SharkBoss {
     const eyes = new THREE.Mesh(sharkEyes(), new THREE.MeshStandardMaterial({color:0x101923, roughness:.32}));
     this.tailMesh = new THREE.Mesh(sharkTail(), bodyMat);
     this.tailMesh.position.set(0,-.12,1.45);
-    this.mesh.add(body, belly, eyes, this.tailMesh);
+    const gills=new THREE.Mesh(sharkGills(),new THREE.MeshStandardMaterial({color:0x253641,roughness:.82}));
+    this.mesh.add(body, belly, eyes, this.tailMesh,gills);
     scene.add(this.mesh);
 
     this.warningRing = new THREE.Mesh(
@@ -111,7 +112,9 @@ export class SharkBoss {
     onPlayerHit: (dmg: number) => void,
     onWarningSignal: () => void
   ): void {
-    this.tailMesh.rotation.y = Math.sin(timeSec * (this.isPhase2() ? 8 : 5)) * .34;
+    const attacking=this.state==='TELEGRAPH'||this.state==='BITING';
+    this.tailMesh.rotation.y=Math.sin(timeSec*(attacking?9:this.isPhase2()?8:5))*(attacking?.48:.34);
+    this.mesh.rotation.z=Math.sin(timeSec*(attacking?6:3))*(attacking?.075:.035);
     const waveY = getWaveHeight(this.position.x, this.position.z, timeSec, stormFactor);
 
     if (this.state === 'REPELLED') {
