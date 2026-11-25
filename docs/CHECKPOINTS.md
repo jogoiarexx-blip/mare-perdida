@@ -95,3 +95,7 @@
 
 ### CP10.2 — exploração submarina inicial
 - Mergulho pela direção da câmera, subida por pulo, fundo procedural (~5–9 m), neblina subaquática, corais instanciados, algas/minério/destroços abertos coletáveis. Streaming de tiles de 64 m (até 9), geração incremental e descarte por distância. Tanque fabricável aumenta capacidade 45→90 s, recarga na superfície; coleta atômica e IDs persistentes nos saves. Testes adicionados. Predadores adicionais, interiores de destroços e missões pendentes; validação manual mobile e shader ainda necessária.
+
+
+### Navegação acessível — remo e ancoragem
+- Remo portátil fabricável (2 madeiras + 1 plástico), entregue em mundos novos; âncora inicial instalada e lançada nos mundos novos. Saves existentes não recebem itens ou módulos automaticamente, mas podem fabricar remo e âncora improvisada (2 sucatas + 1 corda). Botões Remar/Âncora/Vela, atalhos O/H/T, controle direcional, remo visual, indicação de estado e rumo/distância da jangada, retorno ao convés por E/Ação próximo à borda. Âncora impede deslocamento e rotação; salvamento existente preserva estado do módulo. Testes adicionados; gameplay desktop/mobile pendente.

@@ -56,6 +56,8 @@ export class HUD {
   onSelectHotbar?: (idx: number) => void;
   onOpenPanel?: (tab: 'mochila' | 'construcao' | 'diario' | 'opcoes') => void;
   onOpenMenu?: () => void;
+  onNavigation?: (action:'row'|'ancora'|'vela')=>void;
+  setNavigationState(row:boolean,anchor:boolean,sail:boolean){for(const [key,active] of [['row',row],['ancora',anchor],['vela',sail]] as const){const b=this.root.querySelector('[data-nav="'+key+'"]');b?.classList.toggle('nav-active',active);b?.setAttribute('aria-pressed',String(active));}}
   onTouchAction?: (action: 'use' | 'interact' | 'jump' | 'build') => void;
   onTouchMove?: (x: number, y: number) => void;
 
@@ -69,6 +71,9 @@ export class HUD {
           <button class="btn" data-tab="construcao" title="Construir na jangada (B)">${gameIcon('construcao')} [B]</button>
           <button class="btn" data-tab="diario" title="Diário de Missões (J)">${gameIcon('diario')} [J]</button>
           <button class="btn" data-map="1" title="Minimapa (M)">${gameIcon('carta_verde')} [M]</button>
+          <button class="btn" data-nav="row" title="Remar (O)">${gameIcon('remo')} Remar</button>
+          <button class="btn" data-nav="ancora" title="Lançar/recolher âncora (H)">${gameIcon('ancora')} Âncora</button>
+          <button class="btn" data-nav="vela" title="Abrir/recolher vela (T)">${gameIcon('vela')} Vela</button>
           <button class="btn" data-perf="1" title="Monitor de desempenho (F3)">FPS</button>
           <button class="btn" data-menu="1" title="Menu e Saves (Esc)">${gameIcon('opcoes')} [Esc]</button>
         </div>
@@ -123,6 +128,7 @@ export class HUD {
       if (!btn) return;
       const tab = btn.getAttribute('data-tab') as 'mochila' | 'construcao' | 'diario' | 'opcoes' | null;
       if (tab) this.onOpenPanel?.(tab);
+      const nav=btn.getAttribute('data-nav');if(nav==='row'||nav==='ancora'||nav==='vela')this.onNavigation?.(nav);
       if(btn.getAttribute('data-perf'))this.togglePerformance();
       if(btn.getAttribute('data-map'))this.toggleMinimap();
       if (btn.getAttribute('data-menu')) this.onOpenMenu?.();

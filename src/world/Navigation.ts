@@ -9,6 +9,18 @@ export function helmStep(heading:number,turn:number,throttle:number,sail:boolean
   const speed=(t<0?.55:sail?2.1:.85)*t*massMultiplier;
   return {heading:next,dx:-Math.sin(next)*speed*dt,dz:-Math.cos(next)*speed*dt};
 }
+/** Remo portátil: navegação manual independente de vela ou leme. */
+export function paddleStep(heading:number,turn:number,throttle:number,anchored:boolean,dt:number,massMultiplier:number){
+  if(anchored)return {heading,dx:0,dz:0};
+  const next=heading-Math.max(-1,Math.min(1,turn))*.85*dt;
+  const t=Math.max(-1,Math.min(1,throttle)),speed=(t<0?1.05:1.75)*t*massMultiplier;
+  return {heading:next,dx:-Math.sin(next)*speed*dt,dz:-Math.cos(next)*speed*dt};
+}
+export function deckDistance(x:number,z:number,cells:Iterable<{gx:number;gz:number}>):number{
+  let best=Infinity;
+  for(const c of cells){const dx=Math.max(0,Math.abs(x-c.gx)-.5),dz=Math.max(0,Math.abs(z-c.gz)-.5);best=Math.min(best,dx*dx+dz*dz);}
+  return Math.sqrt(best);
+}
 export function validDiscoveredChunk(id:unknown):id is string{return typeof id==='string'&&/^-?\d{1,9}:-?\d{1,9}$/.test(id);}
 export class Discovery {
   private readonly seen=new Set<string>();

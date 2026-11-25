@@ -34,6 +34,7 @@ export interface RecipeDef {
 }
 
 export const RECIPES: RecipeDef[] = [
+  {id:'rec_remo',name:'Remo de madeira',description:'Navegação manual desde o início, mesmo sem leme ou vela.',bench:'manual',ingredients:[{itemId:'madeira',count:2},{itemId:'plastico',count:1}],outputItemId:'remo',outputCount:1},
   {id:'rec_tanque_mergulho',name:'Tanque de mergulho',description:'Aumenta a capacidade de oxigênio para 90 segundos.',bench:'manual',ingredients:[{itemId:'plastico',count:5},{itemId:'sucata',count:4},{itemId:'minerio_marinho',count:2}],outputItemId:'tanque_mergulho',outputCount:1},
   {id:'rec_fibra_alga',name:'Fibra de algas',description:'Transforma algas em fibra.',bench:'manual',ingredients:[{itemId:'alga_marinha',count:2}],outputItemId:'fibra',outputCount:2},
   {
@@ -241,12 +242,12 @@ export const RECIPES: RecipeDef[] = [
   },
   {
     id: 'build_ancora',
-    name: 'Âncora de pedra',
-    description: 'Freia e mantém a jangada parada perto de destroços.',
+    name: 'Âncora improvisada',
+    description: 'Mantém a jangada parada. Acione com H ou botão Âncora antes de desembarcar.',
     bench: 'construcao',
     ingredients: [
-      { itemId: 'pedra', count: 6 },
-      { itemId: 'corda', count: 3 },
+      { itemId: 'sucata', count: 2 },
+      { itemId: 'corda', count: 1 },
     ],
     placesStructure: 'ancora',
     structureMass: 35,
