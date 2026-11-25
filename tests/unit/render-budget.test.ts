@@ -21,7 +21,8 @@ describe('orçamento adaptativo',()=>{
     let d=r.root.getObjectByName('foundation-decks') as InstancedMesh;
     const f=r.root.getObjectByName('foundation-reinforcements') as InstancedMesh;
     expect(d.count).toBe(52);expect(f.count).toBe(1);
-    expect(r.root.children.filter(o=>o instanceof InstancedMesh)).toHaveLength(2);
+    expect(r.root.children.filter(o=>o instanceof InstancedMesh&&o.visible)).toHaveLength(2);
+    const metal=r.root.getObjectByName('foundation-metal') as InstancedMesh;expect(metal.count).toBe(0);expect(metal.visible).toBe(false);
     const version=d.instanceMatrix.version;r.syncWithGrid(g);expect(d.instanceMatrix.version).toBe(version);
     const a=new Color(),b=new Color();d.getColorAt(1,a);
     g.getFoundation(1,0)!.hp=20;r.syncWithGrid(g);d.getColorAt(1,b);expect(a.equals(b)).toBe(false);
