@@ -1,8 +1,11 @@
 import * as THREE from 'three';
 import { chunkAt,chunkKey,chunkRadius,desiredChunks,islandForChunk,islandHeight,islandBiome,type IslandSpec } from './ChunkLayout';
-import { islandTerrain,palmCrown,ruinGeometry,vegetationLod } from './IslandGeometry';
-import {resourcesForIsland,validResourceId,blocksResourceMovement,type IslandResource,type ResourceKind} from './IslandResources';
+import { palmCrown,ruinGeometry,vegetationLod } from './IslandGeometry';
+import {validResourceId,blocksResourceMovement,type IslandResource,type ResourceKind} from './IslandResources';
 
+import {prepareChunk,terrainFromPayload,type ChunkPayload,type ChunkResponse} from './ChunkPayload';
+import type {ChunkCoord} from './ChunkLayout';
+interface PendingChunk {id:number;cx:number;cz:number;spec:IslandSpec;sentAt:number;payload?:ChunkPayload;}
 interface LoadedChunk {cx:number;cz:number;island: IslandView|null;}
 interface IslandView {spec:IslandSpec;root:THREE.Group;terrain:THREE.Mesh;near:THREE.BufferGeometry;far:THREE.BufferGeometry;decor:THREE.Group;detailed:boolean;vegetationLevel:0|1|2;ruin:THREE.Mesh;resources:IslandResource[];batches:Map<ResourceKind,THREE.InstancedMesh[]>;}
 /** Streaming incremental; ilhas vazias não criam objetos de renderização. */
@@ -10,6 +13,13 @@ export class ChunkManager {
   readonly group=new THREE.Group();
   private readonly chunks=new Map<string,LoadedChunk>();
   private seed:number;
+  private worker:Worker|null=null;
+  private readonly pending=new Map<string,PendingChunk>();
+  private serial=0;
+  private queue:ChunkCoord[]=[];
+  private queueCenter='';
+  private lastQueueX=Infinity;
+  private lastQueueZ=Infinity;
   private readonly depleted=new Set<string>();
   private readonly bushGeo=new THREE.IcosahedronGeometry(.68,0);
   private readonly bushMat=new THREE.MeshStandardMaterial({color:0x629944,roughness:1});
@@ -30,10 +40,22 @@ export class ChunkManager {
   private readonly crownMat=new THREE.MeshStandardMaterial({color:0x46844b,roughness:.9,side:THREE.DoubleSide});
   private readonly rockMat=new THREE.MeshStandardMaterial({color:0x827b6d,roughness:1});
   private readonly dummy=new THREE.Object3D();
-  constructor(seed:number,low:boolean){this.seed=seed;this.low=low;}
+  constructor(seed:number,low:boolean,useWorker=false){this.seed=seed;this.low=low;
+    if(useWorker&&typeof Worker!=='undefined')try{
+      this.worker=new Worker(new URL('./chunk.worker.ts',import.meta.url),{type:'module'});
+      this.worker.onmessage=({data}:MessageEvent<ChunkResponse>)=>{
+        for(const p of this.pending.values())if(p.id===data.id){if(data.payload)p.payload=data.payload;else this.disableWorker();break;}
+      };
+      this.worker.onerror=()=>this.disableWorker();
+    }catch{this.disableWorker();}
+  }
+  private disableWorker(){this.worker?.terminate();this.worker=null;this.pending.clear();}
+  get pendingCount(){return this.pending.size;}
+  get workerActive(){return this.worker!==null;}
+  get visibleIslandCount(){let n=0;for(const c of this.chunks.values())if(c.island?.root.visible)n++;return n;}
   get loadedCount(){return this.chunks.size;}
   get islandCount(){let n=0;for(const c of this.chunks.values())if(c.island)n++;return n;}
-  reset(seed:number,low=this.low,depleted:readonly string[]=[]){for(const c of this.chunks.values())this.unload(c);this.chunks.clear();this.seed=seed;this.low=low;this.depleted.clear();for(const id of depleted)if(validResourceId(id))this.depleted.add(id);}
+  reset(seed:number,low=this.low,depleted:readonly string[]=[]){for(const c of this.chunks.values())this.unload(c);this.chunks.clear();this.pending.clear();this.queueCenter='';this.seed=seed;this.low=low;this.depleted.clear();for(const id of depleted)if(validResourceId(id))this.depleted.add(id);}
   serializeResources():string[]{return [...this.depleted].sort();}
   setQuality(low:boolean){if(this.low!==low)this.reset(this.seed,low,this.serializeResources());}
   update(x:number,z:number,budget=1){
@@ -41,12 +63,32 @@ export class ChunkManager {
     for(const [key,c] of this.chunks){
       if(Math.max(Math.abs(c.cx-center.cx),Math.abs(c.cz-center.cz))>radius+1){this.unload(c);this.chunks.delete(key);}
     }
-    for(const target of desiredChunks(x,z,radius)){
+    const centerKey=chunkKey(center.cx,center.cz);
+    if(this.queueCenter!==centerKey||Math.abs(x-this.lastQueueX)>16||Math.abs(z-this.lastQueueZ)>16){
+      this.queue=desiredChunks(x,z,radius);this.queueCenter=centerKey;this.lastQueueX=x;this.lastQueueZ=z;
+    }
+    const now=performance.now();
+    for(const [key,p] of this.pending){
+      if(Math.max(Math.abs(p.cx-center.cx),Math.abs(p.cz-center.cz))>radius){this.pending.delete(key);continue;}
+      if(!p.payload&&now-p.sentAt>5000){this.disableWorker();break;}
+      if(p.payload&&budget>0){this.chunks.set(key,{cx:p.cx,cz:p.cz,island:this.createIsland(p.spec,p.payload)});this.pending.delete(key);budget--;}
+    }
+    for(const target of this.queue){
       if(budget<=0)break;
       const key=chunkKey(target.cx,target.cz);
-      if(this.chunks.has(key))continue;
+      if(this.chunks.has(key)||this.pending.has(key))continue;
       const spec=islandForChunk(this.seed,target.cx,target.cz);
-      this.chunks.set(key,{...target,island:spec?this.createIsland(spec):null});budget--;
+      if(!spec){this.chunks.set(key,{...target,island:null});budget--;continue;}
+      // O setor sob os pés deve estar disponível imediatamente, inclusive após carregar um save.
+      if(this.worker&&key!==centerKey){
+        if(this.pending.size>=2)continue;
+        const p:PendingChunk={...target,id:++this.serial,spec,sentAt:now};
+        this.pending.set(key,p);
+        try{this.worker.postMessage({id:p.id,spec,low:this.low});}catch{this.disableWorker();}
+        budget--;
+      }else{
+        this.chunks.set(key,{...target,island:this.createIsland(spec,prepareChunk(spec,this.low))});budget--;
+      }
     }
     for(const c of this.chunks.values()){
       const v=c.island;if(!v)continue;
@@ -136,12 +178,12 @@ export class ChunkManager {
       if(kind==='bush'||kind==='chest')for(const mesh of batches)mesh.visible=i>0&&v.vegetationLevel===0;
     }
   }
-  private createIsland(spec:IslandSpec):IslandView{
+  private createIsland(spec:IslandSpec,payload:ChunkPayload):IslandView{
     const root=new THREE.Group();root.position.set(spec.x,0,spec.z);
-    const near=islandTerrain(spec,this.low?24:40),far=islandTerrain(spec,12);
+    const near=terrainFromPayload(payload.near),far=terrainFromPayload(payload.far);
     const terrain=new THREE.Mesh(far,this.terrainMat);root.add(terrain);
     const decor=new THREE.Group();decor.visible=false;root.add(decor);
-    const resources=resourcesForIsland(spec);
+    const resources=payload.resources;
     const batches=new Map<ResourceKind,THREE.InstancedMesh[]>();
     const add=(kind:ResourceKind,geometry:THREE.BufferGeometry,material:THREE.Material)=>{
       const mesh=new THREE.InstancedMesh(geometry,material,resources.filter(r=>r.kind===kind).length);
@@ -169,5 +211,5 @@ export class ChunkManager {
     for(const obj of v.decor.children)if(obj instanceof THREE.InstancedMesh)obj.dispose();
     v.root.clear();
   }
-  dispose(){this.reset(this.seed);this.terrainMat.dispose();this.trunkGeo.dispose();this.crownGeo.dispose();this.rockGeo.dispose();this.trunkMat.dispose();this.crownMat.dispose();this.rockMat.dispose();this.bushGeo.dispose();this.bushMat.dispose();this.chestGeo.dispose();this.chestMat.dispose();this.simpleCrownGeo.dispose();this.simpleTrunkGeo.dispose();this.simpleRockGeo.dispose();this.ruinGeo.dispose();this.ruinMat.dispose();}
+  dispose(){this.disableWorker();this.reset(this.seed);this.terrainMat.dispose();this.trunkGeo.dispose();this.crownGeo.dispose();this.rockGeo.dispose();this.trunkMat.dispose();this.crownMat.dispose();this.rockMat.dispose();this.bushGeo.dispose();this.bushMat.dispose();this.chestGeo.dispose();this.chestMat.dispose();this.simpleCrownGeo.dispose();this.simpleTrunkGeo.dispose();this.simpleRockGeo.dispose();this.ruinGeo.dispose();this.ruinMat.dispose();}
 }

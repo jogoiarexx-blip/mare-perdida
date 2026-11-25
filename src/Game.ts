@@ -3,6 +3,7 @@ import { EventBus } from './core/EventBus';
 import { WorldClock } from './core/Clock';
 import { GameLoop } from './core/GameLoop';
 import { AdaptiveResolution } from './core/RenderBudget';
+import { PerformanceMonitor } from './core/PerformanceMonitor';
 import { ITEMS } from './data/items';
 import type { RecipeDef, StructureKind } from './data/recipes';
 import { Inventory } from './player/Inventory';
@@ -51,6 +52,8 @@ export class Game {
   private sector!: SectorManager;
   private chunks!: ChunkManager;
   private readonly discovery=new Discovery();
+  private readonly perf=new PerformanceMonitor();
+  private perfElapsed=1;
   private helmKey:string|null=null;
   private raftGrid = new RaftGrid(256);
   private raftRenderer = new RaftRenderer();
@@ -137,9 +140,9 @@ export class Game {
     this.ambient = new MarineAmbient(this.scene, false);
 
     this.weather = new WeatherSystem(this.scene, !low);
-    this.chunks=new ChunkManager(this.seed,low);
+    this.chunks=new ChunkManager(this.seed,low,true);
     this.scene.add(this.chunks.group);
-    this.chunks.update(0,0,9);
+    this.chunks.update(0,0,2);
     this.sector = new SectorManager(this.seed);
     this.scene.add(this.sector.group);
     this.sector.seedInitialFlotsam(0, 0);
@@ -252,7 +255,8 @@ export class Game {
       if (this.modals.isOpen()) return;
       this.keys.add(e.code);
 
-      if (e.code === 'KeyM'&&!e.repeat) {this.hud.toggleMinimap();}
+      if(e.code==='F3'&&!e.repeat){e.preventDefault();this.hud.togglePerformance();}
+      else if (e.code === 'KeyM'&&!e.repeat) {this.hud.toggleMinimap();}
       else if (e.code === 'KeyE'&&!e.repeat) {
         if (!this.hud.advanceDialogue()) this.handleInteract();
       } else if (e.code === 'KeyF') {
@@ -420,7 +424,7 @@ export class Game {
     this.player.position.set(data.playerPosition.x, data.playerPosition.y, data.playerPosition.z);
     this.chunks.reset(this.seed,this.options.quality==='baixo',data.depletedIslandResources??[]);
     this.discovery.reset(data.discoveredChunks??[]);this.discovery.visit(this.player.position.x,this.player.position.z);this.helmKey=null;
-    this.chunks.update(this.player.position.x,this.player.position.z,9);
+    this.chunks.update(this.player.position.x,this.player.position.z,2);
 
     for (const poi of this.sector.pois) {
       if (poi.id === 'destrocos_radio') poi.looted = this.wreckLooted;
@@ -567,15 +571,18 @@ export class Game {
 
   private render(frameDt: number): void {
     const idle=!this.started||this.loop.paused;
-    this.hudElapsed+=frameDt;
-    this.shadowElapsed+=frameDt;
+    const safeDt=Math.min(.1,frameDt);
+    this.hudElapsed+=safeDt;
+    this.shadowElapsed+=safeDt;
+    this.perfElapsed+=safeDt;
     if(idle){
-      this.resolution.reset();
-      this.idleElapsed+=frameDt;
+      this.resolution.reset();this.perf.reset();
+      this.idleElapsed+=safeDt;
       if(this.idleElapsed<1/15)return;
       this.idleElapsed=0;
     }else{
       this.idleElapsed=1;
+      this.perf.add(frameDt);
       const ratio=this.resolution.sample(frameDt);
       if(ratio!==null)this.renderer.setPixelRatio(ratio);
     }
@@ -589,6 +596,12 @@ export class Game {
     else this.raftRenderer.hideGhost();
     this.ambient.update(this.camera.position.x,this.camera.position.z,this.camera.position.y,this.clock.elapsedSeconds,this.weather.stormFactor,this.options.quality==='baixo');
     this.renderer.render(this.scene, this.camera);
+    if(this.hud.isPerformanceVisible()&&this.perfElapsed>=.5){
+      this.perfElapsed=0;
+      const s=this.perf.snapshot(),info=this.renderer.info;
+      const heap=(performance as Performance&{memory?:{usedJSHeapSize:number}}).memory?.usedJSHeapSize;
+      this.hud.updatePerformance([idle?'Pausado':s.fps+' FPS · p95 '+s.p95ms.toFixed(1)+' ms', 'Draw calls '+info.render.calls+' · '+info.render.triangles.toLocaleString('pt-BR')+' tris', 'Geometrias '+info.memory.geometries+' · texturas '+info.memory.textures, 'Chunks '+this.chunks.loadedCount+' · fila '+this.chunks.pendingCount+' · ilhas visíveis '+this.chunks.visibleIslandCount, 'Worker '+(this.chunks.workerActive?'ativo':'local')+' · DPR '+this.resolution.scale.toFixed(2), 'Quadros >33 ms: '+s.longFrames+(heap!==undefined?' · Heap JS '+Math.round(heap/1048576)+' MB':'')]);
+    }
 
     if (this.started && this.hudElapsed >= (this.buildRecipe ? .08 : .10)) {
       this.hudElapsed=0;
@@ -1163,7 +1176,7 @@ export class Game {
     if(this.activeQuality!==opts.quality){
       const low=opts.quality==='baixo';
       this.chunks.setQuality(low);
-      this.chunks.update(this.player.position.x,this.player.position.z,9);
+      this.chunks.update(this.player.position.x,this.player.position.z,2);
       this.scene.remove(this.ocean.mesh);this.ocean.dispose();
       this.ocean=new OceanRenderer(low);this.scene.add(this.ocean.mesh);
       this.resolution=new AdaptiveResolution(low,this.isMobileDevice(),window.devicePixelRatio||1);

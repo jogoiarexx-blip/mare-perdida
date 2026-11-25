@@ -23,7 +23,8 @@ export class GameLoop {
     this.lastTimeMs = performance.now();
     const step = (nowMs: number) => {
       if (!this.running) return;
-      const rawDt = Math.min(0.1, Math.max(0, (nowMs - this.lastTimeMs) / 1000));
+      const actualDt=Math.max(0,(nowMs-this.lastTimeMs)/1000);
+      const rawDt = Math.min(0.1,actualDt);
       this.lastTimeMs = nowMs;
 
       if (!this.paused) {
@@ -38,7 +39,7 @@ export class GameLoop {
       }
 
       const alpha = this.accumulator / WorldClock.FIXED_DT;
-      this.callbacks.onRender(alpha, rawDt);
+      this.callbacks.onRender(alpha, actualDt);
       this.rafId = requestAnimationFrame(step);
     };
     this.rafId = requestAnimationFrame(step);

@@ -30,6 +30,11 @@ export class HUD {
   private compassEl: HTMLElement;
   private minimapEl:HTMLElement;
   private mapVisible=false;
+  private performanceEl:HTMLElement;
+  private performanceVisible=false;
+  isPerformanceVisible(){return this.performanceVisible;}
+  togglePerformance(){this.performanceVisible=!this.performanceVisible;this.performanceEl.classList.toggle('hidden',!this.performanceVisible);}
+  updatePerformance(lines:string[]){const content=lines.join('\n');if(this.performanceEl.textContent!==content)this.performanceEl.textContent=content;}
   isMinimapVisible(){return this.mapVisible;}
   toggleMinimap(){this.mapVisible=!this.mapVisible;this.minimapEl.classList.toggle('hidden',!this.mapVisible);}
   private questEl: HTMLElement;
@@ -64,6 +69,7 @@ export class HUD {
           <button class="btn" data-tab="construcao" title="Construir na jangada (B)">${gameIcon('construcao')} [B]</button>
           <button class="btn" data-tab="diario" title="Diário de Missões (J)">${gameIcon('diario')} [J]</button>
           <button class="btn" data-map="1" title="Minimapa (M)">${gameIcon('carta_verde')} [M]</button>
+          <button class="btn" data-perf="1" title="Monitor de desempenho (F3)">FPS</button>
           <button class="btn" data-menu="1" title="Menu e Saves (Esc)">${gameIcon('opcoes')} [Esc]</button>
         </div>
       </div>
@@ -75,6 +81,7 @@ export class HUD {
 
       <div class="hud-top-right">
         <div class="glass-card" id="hud-quest"></div>
+        <div class="glass-card perf-monitor hidden" id="hud-performance"></div>
       </div>
 
       <div class="crosshair" aria-hidden="true"></div>
@@ -103,6 +110,7 @@ export class HUD {
     this.vitalsEl = this.root.querySelector('#hud-vitals')!;
     this.compassEl = this.root.querySelector('#hud-compass')!;
     this.minimapEl=this.root.querySelector('#hud-minimap')!;
+    this.performanceEl=this.root.querySelector('#hud-performance')!;
     this.questEl = this.root.querySelector('#hud-quest')!;
     this.promptEl = this.root.querySelector('#hud-prompt')!;
     this.hotbarEl = this.root.querySelector('#hud-hotbar')!;
@@ -115,6 +123,7 @@ export class HUD {
       if (!btn) return;
       const tab = btn.getAttribute('data-tab') as 'mochila' | 'construcao' | 'diario' | 'opcoes' | null;
       if (tab) this.onOpenPanel?.(tab);
+      if(btn.getAttribute('data-perf'))this.togglePerformance();
       if(btn.getAttribute('data-map'))this.toggleMinimap();
       if (btn.getAttribute('data-menu')) this.onOpenMenu?.();
     });
