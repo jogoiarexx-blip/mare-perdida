@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import { plankDeck, reinforcedDeckFrame, combine } from '../render/DetailGeometry';
-import { collectionNet, plantGeometry, grillGeometry, radioFace, roofGeometry } from '../render/EquipmentGeometry';
+import { plankDeck, reinforcedDeckFrame, combine, weatheredWoodTexture } from '../render/DetailGeometry';
+import { collectionNet, plantGeometry, grillGeometry, radioFace, roofGeometry, chestHardware, anchorWinch, purifierBands } from '../render/EquipmentGeometry';
 import { cellKey, RaftGrid, type PlacedModule } from './Grid';
 import { getWaveHeight, getWaveNormal } from '../world/Ocean';
 import type { StructureKind } from '../data/recipes';
@@ -30,7 +30,8 @@ export class RaftRenderer {
   private readonly ghostWallGeo=new THREE.BoxGeometry(.98,2.4,.13).translate(0,1.2,.46);
   private readonly ghostFloorGeo=new THREE.BoxGeometry(.98,.16,.98).translate(0,2.33,0);
   private readonly ghostBoxGeo = new THREE.BoxGeometry(0.94, 0.36, 0.94);
-  private readonly plankMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.83 });
+  private readonly woodTexture = weatheredWoodTexture();
+  private readonly plankMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.88, map:this.woodTexture, vertexColors:true });
   private readonly reinforcedMat = new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, metalness: 0.35, roughness: 0.48 });
 
   private readonly ghostValidMat = new THREE.MeshBasicMaterial({
@@ -135,7 +136,7 @@ export class RaftRenderer {
   private buildModuleMesh(mod: PlacedModule): THREE.Group {
     const g = new THREE.Group();
     const metalMat = new THREE.MeshStandardMaterial({ color: 0x8a9aa8, metalness: 0.45, roughness: 0.45 });
-    const woodMat = new THREE.MeshStandardMaterial({ color: 0x7b4f2b, roughness: 0.85 });
+    const woodMat = new THREE.MeshStandardMaterial({ color: 0x996c42, roughness: 0.88, map:this.woodTexture });
     const clothMat = new THREE.MeshStandardMaterial({ color: 0xf0ead6, roughness: 0.9, side: THREE.DoubleSide });
 
     switch (mod.kind) {
@@ -153,7 +154,7 @@ export class RaftRenderer {
         pipe.position.set(.28,.65,0); pipe.rotation.z = -Math.PI/2;
         const tap = new THREE.Mesh(new THREE.CylinderGeometry(.033,.033,.13,8),metalMat);
         tap.position.set(.4,.5,0);
-        g.add(base, tank, dome, pipe,tap);
+        g.add(base, tank, dome, pipe,tap,new THREE.Mesh(purifierBands(),metalMat));
         break;
       }
       case 'churrasqueira': {
@@ -281,7 +282,7 @@ export class RaftRenderer {
           new THREE.MeshStandardMaterial({ color: 0x676b70, roughness: 0.95 })
         );
         stone.position.set(0, 0.56, 0.18);
-        g.add(winch, stone);
+        g.add(winch, stone,new THREE.Mesh(anchorWinch(),metalMat));
         break;
       }
       case 'radio': {
@@ -340,7 +341,7 @@ export class RaftRenderer {
         chest.position.y = 0.24;
         const band = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.1, 0.58), metalMat);
         band.position.y = 0.36;
-        g.add(chest, band);
+        g.add(chest, band,new THREE.Mesh(chestHardware(),metalMat));
         break;
       }
     }
@@ -425,6 +426,7 @@ export class RaftRenderer {
     this.deckGeo.dispose();
     this.trimGeo.dispose();
     this.plankMat.dispose();
+    this.woodTexture.dispose();
     if(this.batchCapacity){ this.deckBatch.dispose(); this.trimBatch.dispose(); }
     this.reinforcedMat.dispose();
     this.ghostValidMat.dispose();
