@@ -1,0 +1,174 @@
+/* Maré Perdida — HUD Náutica v2. Somente interface; sem efeitos de GPU ou scripts. */
+#ui-root {
+  --navy-hud: rgba(5, 21, 31, .89);
+  --line-hud: rgba(146, 206, 218, .30);
+  --ice-hud: #d8f3f5;
+  --muted-hud: #accbd1;
+  --hud-edge: clamp(10px, 1.35vw, 23px);
+  --hud-left: clamp(212px, 19vw, 278px);
+  --hud-right: clamp(220px, 23vw, 320px);
+  --hud-slot: clamp(47px, 4.35vw, 65px);
+}
+#ui-root .hud-top-left {top:var(--hud-edge);left:var(--hud-edge);width:var(--hud-left);gap:7px;}
+#ui-root .hud-top-right {top:var(--hud-edge);right:var(--hud-edge);width:var(--hud-right);gap:7px;}
+#ui-root .hud-top-center {top:var(--hud-edge);left:calc(var(--hud-edge) * 2 + var(--hud-left));right:calc(var(--hud-edge) * 2 + var(--hud-right));transform:none;gap:7px;min-width:0;align-items:center;}
+#hud-vitals,#hud-quick-btns,#hud-compass,#hud-quest,#hud-minimap,#hud-performance,#hud-hotbar {
+  background:var(--navy-hud);border:1px solid var(--line-hud);border-radius:4px 13px 4px 4px;
+  box-shadow:0 3px 10px #00101b44;backdrop-filter:none;
+}
+#hud-vitals,#hud-quest {border-top:2px solid #60a9b8;}
+#hud-vitals {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 9px;padding:9px;}
+#hud-vitals::before,#hud-quest::before {
+  grid-column:1/-1;display:block;font-size:.69em;letter-spacing:.16em;font-weight:750;color:#a1d4de;line-height:1.1;
+}
+#hud-vitals::before {content:"SOBREVIVÊNCIA";}
+#hud-vitals .vital-row {
+  margin:0;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:5px 3px;align-items:center;
+  padding:6px;background:#8ecbd40b;border:1px solid #a6d2db17;border-radius:3px 7px 3px 3px;min-width:0;
+}
+#hud-vitals .vital-label {grid-column:1;grid-row:1;width:auto;min-width:0;display:flex;align-items:center;gap:3px;color:var(--ice-hud);font-size:.87em;white-space:nowrap;}
+#hud-vitals .vital-label .game-icon {width:14px;height:14px;}
+#hud-vitals .vital-val {grid-column:2;grid-row:1;width:auto;font-size:.89em;font-weight:750;color:#f4f8f9;}
+#hud-vitals .vital-bar {grid-column:1/-1;grid-row:2;width:100%;height:5px;background:#b6d7df22;border-radius:2px;overflow:hidden;}
+#hud-vitals .vital-fill {height:100%;border-radius:2px;min-width:0;box-shadow:none;transition:none;}
+#hud-vitals .vital-row:nth-child(1) .vital-label {color:#ffa6a1;}
+#hud-vitals .vital-row:nth-child(2) .vital-label {color:#ffd28a;}
+#hud-vitals .vital-row:nth-child(3) .vital-label {color:#9be5ff;}
+#hud-vitals .vital-row:nth-child(4) .vital-label {color:#8be8bd;}
+#hud-vitals .vital-row:nth-child(5) {grid-column:1/-1;}
+#hud-quick-btns {display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px!important;padding:6px!important;}
+#hud-quick-btns .btn {
+  min-width:0;min-height:34px;display:flex;align-items:center;justify-content:center;gap:4px;
+  padding:5px 3px;border:1px solid #82b9c52e;border-radius:3px 8px 3px 3px;background:#153342;
+  color:#d6e9ed;font-size:.80em;white-space:nowrap;line-height:1;
+}
+#hud-quick-btns .btn:hover,#hud-quick-btns .btn:focus-visible {border-color:#82d9ef;background:#21566b;outline:1px solid #82d9ef;}
+#hud-quick-btns .game-icon {width:17px;height:17px;}
+/* Colunas reservadas: navegação nunca passa por cima de vitais e missões. */
+#hud-compass {
+  width:100%;max-width:680px;padding:8px 11px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;
+  gap:5px 10px;align-items:center;min-width:0;color:#d8e9ed;font-size:.84em;text-align:center;
+}
+#hud-compass > span {min-width:0;overflow-wrap:anywhere;}
+#hud-compass > span:nth-child(2) {
+  grid-row:1;grid-column:1/-1;color:#f0f7f8;font-weight:700;letter-spacing:.02em;line-height:1.35;
+  padding:1px 2px 7px;border-bottom:1px solid #89b9c12b;
+}
+#hud-compass > span:nth-child(2) .game-icon {color:#93deeb;width:20px;height:20px;}
+#hud-compass > span:nth-child(1) {grid-row:2;grid-column:1;text-align:left;color:#c6dce1;}
+#hud-compass > span:nth-child(3) {grid-row:2;grid-column:2;color:#b7e0d5;}
+#hud-compass > span:nth-child(4) {grid-row:2;grid-column:3;font-size:.91em;text-align:right;}
+#hud-minimap {width:clamp(110px,12vw,160px);max-width:100%;margin:0 auto;padding:6px;}
+#hud-quest {padding:11px 12px;overflow-wrap:anywhere;}
+#hud-quest::before {content:"DIÁRIO DE BORDO";margin-bottom:9px;}
+#hud-quest .quest-title {font-size:1em;font-weight:800;line-height:1.28;color:#b5edf4;margin:0 0 7px;}
+#hud-quest .quest-obj {font-size:.84em;line-height:1.43;color:#e2eef0;margin:4px 0;}
+#hud-quest .quest-obj.done {color:#81d9ac;opacity:.8;text-decoration:line-through;}
+#hud-quest > div[style*="#f87171"],#hud-quest > div[style*="rgb(248, 113, 113)"] {
+  margin:10px -4px 0!important;padding:8px;border:1px solid #f1746f78;border-left:3px solid #ff827a;
+  border-radius:3px 7px 3px 3px;background:#56282cba;color:#ffc2bb!important;font-size:.87em;line-height:1.4;
+}
+#hud-quest > div[style*="#34d399"],#hud-quest > div[style*="rgb(52, 211, 153)"] {
+  margin:9px -4px 0!important;padding:8px;border-left:3px solid #5be2a8;background:#194b3d9e;color:#b9f8d8!important;font-size:.84em;line-height:1.4;
+}
+#hud-performance {white-space:pre-line;font-size:11px;max-width:100%;padding:8px;}
+/* Mira e interação permanecem centradas, sem painel intrusivo. */
+#ui-root .crosshair {width:18px;height:18px;margin:-9px 0 0 -9px;border:0;border-radius:0;box-shadow:none;
+  background:linear-gradient(#fff,#fff) center top/1px 5px no-repeat,linear-gradient(#fff,#fff) center bottom/1px 5px no-repeat,linear-gradient(#fff,#fff) left center/5px 1px no-repeat,linear-gradient(#fff,#fff) right center/5px 1px no-repeat;
+  filter:drop-shadow(0 1px 1px #071923);opacity:.9;}
+#ui-root .crosshair::after {content:"";position:absolute;left:8px;top:8px;width:2px;height:2px;border-radius:50%;background:white;}
+#hud-prompt {top:calc(50% + 23px);max-width:min(88vw,520px);white-space:normal;text-align:center;background:#061b27e6;border:1px solid #8cc4ce70;border-left:3px solid #80d8eb;border-radius:3px 9px 3px 3px;color:#e9f4f5;padding:7px 12px;font-size:.86em;line-height:1.35;}
+/* Barra rápida — 8 slots originais, quantidade e seleção legíveis. */
+#ui-root .hotbar-wrap {bottom:max(12px,env(safe-area-inset-bottom));width:max-content;max-width:calc(100% - 16px);}
+#hud-hotbar {display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:5px;padding:6px;overflow:visible;position:relative;}
+#hud-hotbar .slot-btn {width:var(--hud-slot);height:var(--hud-slot);min-width:0;border-radius:3px 10px 3px 3px;background:linear-gradient(145deg,#1d3947,#0d2633);border:1px solid #90c5d43b;color:#edf4f5;box-shadow:none;position:relative;}
+#hud-hotbar .slot-btn:hover,#hud-hotbar .slot-btn:focus-visible {border-color:#9de6f2;outline:1px solid #9de6f2;}
+#hud-hotbar .slot-btn.selected {border:2px solid #8de4f2;background:linear-gradient(150deg,#286779,#153d51);box-shadow:0 0 0 2px #0c202d;}
+#hud-hotbar .slot-btn.selected::before {content:"";position:absolute;top:-5px;left:calc(50% - 7px);width:14px;height:3px;background:#a3edfa;border-radius:1px;}
+#hud-hotbar .slot-btn.selected::after {content:attr(aria-label);position:absolute;bottom:calc(100% + 16px);left:50%;transform:translateX(-50%);background:#081e2be8;border:1px solid #82bcca55;border-radius:3px;padding:4px 8px;font-size:11px;font-weight:600;white-space:nowrap;pointer-events:none;color:#e1f4f6;}
+#hud-hotbar .slot-key {top:3px;left:5px;color:#a6cbd3;font-size:10px;font-weight:650;}
+#hud-hotbar .slot-count {bottom:3px;right:4px;font-size:11px;background:#061a24df;color:#fff;padding:1px 4px;border-radius:3px;font-variant-numeric:tabular-nums;}
+#hud-hotbar .slot-art {display:grid;place-items:center;}
+#hud-hotbar .game-icon.icon-item {width:clamp(26px,2.65vw,37px);height:clamp(26px,2.65vw,37px);}
+#hud-toasts {left:var(--hud-edge);bottom:calc(var(--hud-slot) + 40px);max-width:min(300px,36vw);gap:5px;}
+#hud-toasts .toast {background:#081e2de8;border:1px solid #87b9c34d;border-left:3px solid #78d0e1;border-radius:3px 8px 3px 3px;color:#e6f2f4;font-size:.86em;line-height:1.4;padding:8px 10px;}
+#hud-toasts .toast.warn {border-left-color:#f6bc68;}
+#hud-toasts .toast.danger {border-left-color:#fa827d;}
+#hud-toasts .toast.success {border-left-color:#76dbab;}
+#hud-dialogue {bottom:calc(var(--hud-slot) + 54px);border-radius:4px 13px 4px 4px;background:#0a2130f2;border:1px solid #8ed0de;border-left:3px solid #7ed9ea;padding:14px 16px;z-index:5;}
+#hud-dialogue .dialogue-speaker {color:#9eeaf1;}
+#hud-touch .touch-btn {background:#092633df;border:1px solid #a4dce795;border-radius:6px 14px 6px 6px;box-shadow:none;min-height:44px;}
+#hud-touch .touch-pad {background:#12333e55;border:1px solid #b1e1e780;}
+#hud-touch .touch-knob {background:#7cc9dc80;}
+/* Não sobrepor HUD ao menu ou a controles de modal; mensagens de importação continuam visíveis. */
+#ui-root:has(.mare-menu-v2:not(.hidden)) .hud-top-left,
+#ui-root:has(.mare-menu-v2:not(.hidden)) .hud-top-center,
+#ui-root:has(.mare-menu-v2:not(.hidden)) .hud-top-right,
+#ui-root:has(.mare-menu-v2:not(.hidden)) .hotbar-wrap,
+#ui-root:has(.mare-menu-v2:not(.hidden)) .crosshair,
+#ui-root:has(.mare-menu-v2:not(.hidden)) #hud-prompt,
+#ui-root:has(.mare-menu-v2:not(.hidden)) #hud-touch {visibility:hidden;}
+.high-contrast #ui-root {--navy-hud:#000;--line-hud:#fff;--ice-hud:#fff;--muted-hud:#fff;}
+.high-contrast #hud-quick-btns .btn,.high-contrast #hud-hotbar .slot-btn {background:#000;color:#fff;border-color:#fff;}
+.high-contrast #hud-hotbar .slot-btn.selected {border:3px solid #00e5ff;}
+@media(max-width:980px){
+  #ui-root {--hud-left:clamp(188px,24vw,230px);--hud-right:clamp(190px,27vw,245px);}
+  #ui-root .hud-top-center {left:var(--hud-edge);right:var(--hud-edge);top:var(--hud-edge);}
+  #hud-compass {max-width:100%;grid-template-columns:1fr 1.8fr 1fr auto;gap:5px 9px;padding:7px 9px;}
+  #hud-compass > span:nth-child(n) {grid-row:1;grid-column:auto;text-align:center;border:0;padding:0;line-height:1.3;}
+  #ui-root .hud-top-left,#ui-root .hud-top-right {top:calc(var(--hud-edge) + 66px);}
+  #hud-minimap {position:absolute;top:65px;}
+}
+@media(max-width:600px){
+  #ui-root {--hud-edge:8px;--hud-left:calc(49vw - 12px);--hud-right:calc(51vw - 12px);--hud-slot:min(44px,calc((100vw - 58px)/8));}
+  #hud-compass {grid-template-columns:1fr 1fr auto;gap:3px 5px;font-size:.73em;padding:6px;}
+  #hud-compass > span:nth-child(2) {grid-row:1;grid-column:1/-1;padding-bottom:3px;border-bottom:1px solid #89b9c12b;}
+  #hud-compass > span:nth-child(1) {grid-row:2;grid-column:1;}
+  #hud-compass > span:nth-child(3) {grid-row:2;grid-column:2;}
+  #hud-compass > span:nth-child(4) {grid-row:2;grid-column:3;}
+  #ui-root .hud-top-left,#ui-root .hud-top-right {top:calc(var(--hud-edge) + 80px);}
+  #hud-vitals {padding:6px;gap:4px;}
+  #hud-vitals .vital-row {padding:4px;gap:4px 2px;}
+  #hud-vitals .vital-label {font-size:.73em;}
+  #hud-vitals .vital-label .game-icon {width:11px;height:11px;}
+  #hud-vitals .vital-val {font-size:.73em;}
+  #hud-quick-btns {gap:3px!important;padding:4px!important;}
+  #hud-quick-btns .btn {min-height:38px;font-size:.72em;gap:2px;}
+  #hud-quick-btns .game-icon {width:13px;height:13px;}
+  #hud-quest {padding:7px;font-size:.83em;}
+  #hud-quest::before {margin-bottom:6px;}
+  #hud-quest .quest-obj {font-size:.82em;line-height:1.3;}
+  #hud-quest > div[style*="#f87171"],#hud-quest > div[style*="#34d399"] {padding:5px;margin:7px 0 0!important;}
+  #hud-hotbar {gap:3px;padding:4px;}
+  #hud-hotbar .slot-key {font-size:8px;}
+  #hud-hotbar .slot-count {font-size:9px;}
+  #hud-hotbar .slot-btn.selected::after {display:none;}
+  #hud-hotbar .game-icon.icon-item {width:24px;height:24px;}
+  #hud-toasts {max-width:72vw;bottom:calc(var(--hud-slot) + 155px);font-size:.86em;}
+  #hud-dialogue {bottom:calc(var(--hud-slot) + 145px);}
+  #hud-minimap {top:78px;}
+}
+@media(pointer:coarse){
+  #hud-touch .touch-actions {bottom:calc(var(--hud-slot) + 24px);right:12px;grid-template-columns:repeat(2,52px);gap:5px;}
+  #hud-touch .touch-pad {bottom:calc(var(--hud-slot) + 24px);left:12px;width:104px;height:104px;}
+  #hud-touch .touch-knob {width:36px;height:36px;margin:-18px 0 0 -18px;}
+  #hud-touch .touch-btn {height:49px;}
+  #hud-toasts {bottom:calc(var(--hud-slot) + 150px);}
+}
+@media(max-height:460px) and (orientation:landscape){
+  #ui-root {--hud-edge:6px;--hud-slot:42px;--hud-left:180px;--hud-right:200px;}
+  #ui-root .hud-top-center {left:calc(var(--hud-left) + 12px);right:calc(var(--hud-right) + 12px);top:6px;}
+  #hud-compass {display:flex;flex-wrap:wrap;justify-content:center;gap:3px;font-size:.72em;padding:4px;}
+  #hud-compass > span:nth-child(2) {flex-basis:100%;order:-1;}
+  #ui-root .hud-top-left,#ui-root .hud-top-right {top:6px;}
+  #hud-vitals {gap:4px;padding:5px;}
+  #hud-vitals .vital-row {padding:4px;}
+  #hud-quick-btns .btn {min-height:29px;}
+  #hud-quest {font-size:.78em;padding:7px;}
+  #hud-hotbar .slot-btn.selected::after {display:none;}
+  #hud-touch .touch-pad {width:80px;height:80px;bottom:57px;}
+  #hud-touch .touch-actions {grid-template-columns:repeat(2,44px);bottom:57px;}
+  #hud-touch .touch-btn {height:39px;min-height:39px;}
+  #hud-toasts {bottom:145px;max-width:180px;font-size:.74em;}
+}
+@media(prefers-reduced-motion:reduce){#hud-vitals .vital-fill{transition:none;}}
