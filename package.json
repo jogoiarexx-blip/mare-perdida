@@ -1,0 +1,24 @@
+{
+  "name": "mare-perdida",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Maré Perdida: O Último Horizonte — Survival 3D em navegador (Vertical Slice)",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "three": "^0.170.0"
+  },
+  "devDependencies": {
+    "@types/three": "^0.170.0",
+    "fake-indexeddb": "^6.0.0",
+    "typescript": "^5.6.3",
+    "vite": "^6.0.0",
+    "vitest": "^2.1.0"
+  }
+}
