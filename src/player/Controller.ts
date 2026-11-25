@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { survivorClothing, survivorHead, survivorArm, survivorLeg, survivorVest } from '../render/DetailGeometry';
+import { survivorClothing, survivorHead, survivorArm, survivorLeg, survivorVest, survivorGear, survivorGlove } from '../render/DetailGeometry';
 import { cellKey, RaftGrid } from '../raft/Grid';
 import {upperFloor,architectureBlocks} from '../raft/Architecture';
 import type { RaftRenderer } from '../raft/RaftRenderer';
@@ -33,6 +33,7 @@ export class PlayerController {
   private readonly localA=new THREE.Vector2();private readonly localB=new THREE.Vector2();
   private readonly eyeHeight = 1.58;
   private readonly limbs: THREE.Group[] = [];
+  readonly toolHand = new THREE.Group();
   private gait = 0;
 
   constructor(scene: THREE.Scene) {
@@ -40,16 +41,20 @@ export class PlayerController {
     const trousers = new THREE.MeshStandardMaterial({color:0x293840,roughness:.88});
     const skin = new THREE.MeshStandardMaterial({color:0xd4a282,roughness:.75});
     const vest = new THREE.MeshStandardMaterial({color:0xd48236,roughness:.8});
+    const details = new THREE.MeshStandardMaterial({color:0x26383d,roughness:.9});
     const add = (parent: THREE.Group, geo: THREE.BufferGeometry, mat: THREE.Material) => {
       const mesh = new THREE.Mesh(geo,mat); mesh.castShadow = true; parent.add(mesh);
     };
     add(this.avatarGroup,survivorClothing(),clothing);
     add(this.avatarGroup,survivorHead(),skin);
     add(this.avatarGroup,survivorVest(),vest);
+    add(this.avatarGroup,survivorGear(),details);
     for(const side of [-1,1]){
       const arm = new THREE.Group(); arm.position.set(side*.28,1.32,0);
       const leg = new THREE.Group(); leg.position.set(side*.13,.67,0);
       add(arm,survivorArm(),clothing); add(leg,survivorLeg(),trousers);
+      add(arm,survivorGlove(),details);
+      if(side===1)arm.add(this.toolHand);
       this.avatarGroup.add(arm,leg); this.limbs.push(arm,leg);
     }
     this.avatarGroup.visible = false;
@@ -67,7 +72,7 @@ export class PlayerController {
     const wp = raft.localToWorld(safe.x, safe.y + 0.5, safe.z);
     this.position.copy(wp);
     this.velocity.set(0, 0, 0);
-    this.onRaft=false;this.grounded=false;
+    this.onRaft=false;this.grounded=false;this.avatarGroup.rotation.x=0;
   }
 
   update(
@@ -175,12 +180,19 @@ export class PlayerController {
     this.avatarGroup.rotation.y = this.yaw;
     if (this.thirdPerson) {
       const speed = Math.hypot(this.velocity.x,this.velocity.z);
-      this.gait += dt * (this.inWater ? 5 : 2.8 * speed);
-      const stride = Math.sin(this.gait) * Math.min(.65,speed*.14);
+      this.gait = (this.gait + dt * (this.inWater ? 5 : 2.8 * speed))%(Math.PI*2);
+      const stride = Math.sin(this.gait) * Math.min(.75,speed*.15);
+      const blend=Math.min(1,dt*10);
       for(let i=0;i<this.limbs.length;i++){
-        const target = stride * (i===0||i===3 ? 1 : -1);
-        this.limbs[i].rotation.x = THREE.MathUtils.lerp(this.limbs[i].rotation.x,target,Math.min(1,dt*12));
+        const arm=i%2===0;
+        const phase=(i<2?0:Math.PI);
+        const target=this.inWater
+          ? (arm?-.9+Math.sin(this.gait+phase)*.72:-.10+Math.sin(this.gait*1.5+phase)*.37)
+          : !this.grounded?(arm?-.32:.24):stride*(i===0||i===3?1:-1);
+        this.limbs[i].rotation.x=THREE.MathUtils.lerp(this.limbs[i].rotation.x,target,blend);
+        this.limbs[i].rotation.z=THREE.MathUtils.lerp(this.limbs[i].rotation.z,this.inWater&&arm?(i===0?-.24:.24):0,blend);
       }
+      this.avatarGroup.rotation.x=THREE.MathUtils.lerp(this.avatarGroup.rotation.x,this.inWater?-.52:0,blend);
     }
   }
 
