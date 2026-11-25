@@ -27,6 +27,7 @@ export class PlayerController {
   underwater = false;
 
   readonly avatarGroup = new THREE.Group();
+  private readonly wishVector=new THREE.Vector3();
   private readonly eyeHeight = 1.58;
   private readonly limbs: THREE.Group[] = [];
   private gait = 0;
@@ -85,11 +86,8 @@ export class PlayerController {
       this.position.z += raftDeltaZ;
     }
 
-    const forwardVec = new THREE.Vector3(-Math.sin(this.yaw), 0, -Math.cos(this.yaw));
-    const rightVec = new THREE.Vector3(Math.cos(this.yaw), 0, -Math.sin(this.yaw));
-    const wish = new THREE.Vector3()
-      .addScaledVector(forwardVec, input.forward)
-      .addScaledVector(rightVec, input.strafe);
+    const sy=Math.sin(this.yaw),cy=Math.cos(this.yaw);
+    const wish=this.wishVector.set(-sy*input.forward+cy*input.strafe,0,-cy*input.forward-sy*input.strafe);
 
     if (wish.lengthSq() > 1) wish.normalize();
 

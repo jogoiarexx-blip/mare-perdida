@@ -26,6 +26,7 @@ export class HookController {
   private readonly hookMesh: THREE.Mesh;
   private readonly ropeLine: THREE.Line;
   private readonly ropePositions = new Float32Array(6);
+  private readonly toPlayer=new THREE.Vector3();
 
   constructor(scene: THREE.Scene) {
     this.hookMesh = new THREE.Mesh(
@@ -87,7 +88,7 @@ export class HookController {
         this.state.reeling = true;
       }
     } else {
-      const toPlayer = playerHandPos.clone().sub(this.state.position);
+      const toPlayer = this.toPlayer.copy(playerHandPos).sub(this.state.position);
       const dist = toPlayer.length();
       if (dist < 1.15) {
         for (const id of this.state.caughtIds) {
@@ -106,8 +107,9 @@ export class HookController {
 
       // Puxa detritos próximos durante o recolhimento
       for (const flt of sector.flotsam) {
-        const d = Math.hypot(flt.x - this.state.position.x, flt.z - this.state.position.z);
-        if (d < 1.9 && !this.state.caughtIds.includes(flt.id)) {
+        const dx=flt.x-this.state.position.x,dz=flt.z-this.state.position.z;
+        const d=dx*dx+dz*dz;
+        if (d < 1.9*1.9 && !this.state.caughtIds.includes(flt.id)) {
           this.state.caughtIds.push(flt.id);
         }
         if (this.state.caughtIds.includes(flt.id)) {

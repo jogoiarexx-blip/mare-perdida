@@ -57,3 +57,7 @@
 
 ### Desempenho — lote de fundações, HUD e resolução
 - Fundações e aros metálicos instanciados em dois lotes, cores por instância; matrizes só reenviadas quando muda estado visual. Prévia, módulos, saves e física preservados. HUD 10 Hz (12,5 Hz na construção), sem reescrever se conteúdo igual; menus pausados até 15 FPS; sombras 8/20 Hz; resolução adaptativa e opção baixa/alta em tempo real. Blur removido em tela touch. Testes unitários adicionados; FPS comparativo e testes reais de GPU/mobile pendentes.
+
+
+### Desempenho 2 — CPU, consultas e detritos
+- Sincronização estrutural completa deixa de ocorrer 20 vezes/s: construção, reparo, restauração e mordida atualizam a malha quando necessário; hortas atualizam apenas seu módulo. Busca de equipamentos e fundações próximas usa grade em bases grandes; redes numerosas consultam buckets de detritos, mantendo raio e ordem de coleta. Pool de meshes por tipo de detrito e mapa por ID evitam alocações e coleta duplicada; vetores temporários reutilizados e distâncias quadráticas. Testes de regressão adicionados. Medição real de FPS/GC e teste visual ainda pendentes.

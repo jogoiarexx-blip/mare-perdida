@@ -36,6 +36,8 @@ export class SectorManager {
   private rng: SeededRng;
   private spawnSeq = 1;
   private spawnTimer = 0;
+  private readonly flotsamById=new Map<string,FlotsamEntity>();
+  private readonly meshPool=new Map<FlotsamKind,THREE.Mesh[]>();
   private wreckDetails: THREE.Group | null = null;
   private readonly distantPlastic = new THREE.CylinderGeometry(.18,.22,.50,6);
   private readonly distantCrate = new THREE.BoxGeometry(.85,.72,.85);
@@ -162,6 +164,22 @@ export class SectorManager {
     });
   }
 
+  private takeMesh(kind:FlotsamKind,geometry:THREE.BufferGeometry,material:THREE.Material):THREE.Mesh{
+    const mesh=this.meshPool.get(kind)?.pop()??new THREE.Mesh(geometry,material);
+    mesh.geometry=geometry;mesh.material=material;
+    mesh.rotation.set(0,0,0);mesh.castShadow=true;mesh.visible=true;
+    return mesh;
+  }
+
+  private recycle(f:FlotsamEntity):void{
+    this.flotsamById.delete(f.id);
+    this.group.remove(f.mesh);
+    if(f.mesh instanceof THREE.Mesh){
+      let pool=this.meshPool.get(f.kind);if(!pool){pool=[];this.meshPool.set(f.kind,pool);}
+      if(pool.length<34)pool.push(f.mesh);
+    }
+  }
+
   private spawnSingleFlotsam(x: number, z: number): void {
     const roll = this.rng.next();
     let kind: FlotsamKind = 'madeira';
@@ -170,23 +188,23 @@ export class SectorManager {
 
     if (roll < 0.36) {
       kind = 'madeira';
-      mesh = new THREE.Mesh(this.woodGeo, this.woodMat);
+      mesh = this.takeMesh('madeira',this.woodGeo,this.woodMat);
       loot = [{ itemId: 'madeira', count: this.rng.int(1, 2) }];
     } else if (roll < 0.66) {
       kind = 'plastico';
-      mesh = new THREE.Mesh(this.plasticGeo, this.plasticMat);
+      mesh = this.takeMesh('plastico',this.plasticGeo,this.plasticMat);
       mesh.rotation.z = Math.PI / 2;
       loot = [{ itemId: 'plastico', count: this.rng.int(1, 2) }];
     } else if (roll < 0.84) {
       kind = 'folha';
-      mesh = new THREE.Mesh(this.leafGeo, this.leafMat);
+      mesh = this.takeMesh('folha',this.leafGeo,this.leafMat);
       loot = [
         { itemId: 'folha', count: 1 },
         { itemId: 'fibra', count: this.rng.int(1, 2) },
       ];
     } else if (roll < 0.94) {
       kind = 'caixote';
-      mesh = new THREE.Mesh(this.crateGeo, this.crateMat);
+      mesh = this.takeMesh('caixote',this.crateGeo,this.crateMat);
       loot = [
         { itemId: 'madeira', count: 2 },
         { itemId: 'sucata', count: 1 },
@@ -195,7 +213,7 @@ export class SectorManager {
       ].filter((l) => l.count > 0);
     } else {
       kind = 'barril';
-      mesh = new THREE.Mesh(this.barrelGeo, this.barrelMat);
+      mesh = this.takeMesh('barril',this.barrelGeo,this.barrelMat);
       loot = [
         { itemId: 'sucata', count: 2 },
         { itemId: 'pedra', count: 2 },
@@ -206,7 +224,7 @@ export class SectorManager {
     mesh.castShadow = true;
     mesh.position.set(x, 0, z);
     this.group.add(mesh);
-    this.flotsam.push({
+    const entity:FlotsamEntity={
       id: `flt_${this.spawnSeq++}`,
       kind,
       x,
@@ -214,7 +232,8 @@ export class SectorManager {
       rotY: this.rng.range(0, Math.PI * 2),
       mesh,
       loot,
-    });
+    };
+    this.flotsam.push(entity);this.flotsamById.set(entity.id,entity);
   }
 
   update(dt: number, raftX: number, raftZ: number, timeSec: number, stormFactor: number, viewerX = raftX, viewerZ = raftZ): void {
@@ -234,20 +253,21 @@ export class SectorManager {
       f.z += currentSpeedZ * dt;
       f.rotY += 0.25 * dt;
 
+      const raftDx=f.x-raftX,raftDz=f.z-raftZ;
+      if(raftDx*raftDx+raftDz*raftDz>65*65){
+        this.recycle(f);this.flotsam.splice(i,1);continue;
+      }
       const waveY = getWaveHeight(f.x, f.z, timeSec, stormFactor);
       f.mesh.position.set(f.x, waveY - 0.03, f.z);
       f.mesh.rotation.y = f.rotY;
       if (f.mesh instanceof THREE.Mesh) {
         const distanceSq = (f.x-viewerX)**2 + (f.z-viewerZ)**2;
-        const pair = f.kind === 'plastico' ? [this.plasticGeo,this.distantPlastic] : f.kind === 'caixote' ? [this.crateGeo,this.distantCrate] : f.kind === 'barril' ? [this.barrelGeo,this.distantBarrel] : null;
-        if(pair) f.mesh.geometry = detailedAtDistance(distanceSq,f.mesh.geometry === pair[0]) ? pair[0] : pair[1];
+        const near=f.kind==='plastico'?this.plasticGeo:f.kind==='caixote'?this.crateGeo:f.kind==='barril'?this.barrelGeo:null;
+        const far=f.kind==='plastico'?this.distantPlastic:f.kind==='caixote'?this.distantCrate:f.kind==='barril'?this.distantBarrel:null;
+        if(near&&far){const geo=detailedAtDistance(distanceSq,f.mesh.geometry===near)?near:far;if(f.mesh.geometry!==geo)f.mesh.geometry=geo;}
         f.mesh.castShadow = distanceSq < 28*28;
       }
 
-      if (Math.hypot(f.x - raftX, f.z - raftZ) > 65) {
-        this.group.remove(f.mesh);
-        this.flotsam.splice(i, 1);
-      }
     }
 
     for (const poi of this.pois) {
@@ -266,14 +286,17 @@ export class SectorManager {
   }
 
   removeFlotsam(id: string): FlotsamEntity | null {
-    const idx = this.flotsam.findIndex((f) => f.id === id);
-    if (idx === -1) return null;
-    const [removed] = this.flotsam.splice(idx, 1);
-    this.group.remove(removed.mesh);
+    const removed=this.flotsamById.get(id);
+    if(!removed)return null;
+    const idx=this.flotsam.indexOf(removed);
+    if(idx<0)return null;
+    this.flotsam.splice(idx,1);this.recycle(removed);
     return removed;
   }
 
   dispose(): void {
+    this.meshPool.clear();this.flotsamById.clear();
+    this.group.clear();this.flotsam.length=0;
     this.distantPlastic.dispose();
     this.distantCrate.dispose();
     this.distantBarrel.dispose();

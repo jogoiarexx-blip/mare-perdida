@@ -13,9 +13,10 @@ import { cellKey, RaftGrid } from './raft/Grid';
 import { StructureGraph } from './raft/StructureGraph';
 import { RaftRenderer } from './raft/RaftRenderer';
 import { BuildTargetPicker, evaluateBuild, type BuildTarget } from './raft/BuildTarget';
+import { nearestGridEntry, FlotsamBuckets } from './raft/GridQueries';
 import { OceanRenderer } from './world/Ocean';
 import { WeatherSystem } from './world/Weather';
-import { SectorManager } from './world/SectorManager';
+import { SectorManager, type FlotsamEntity } from './world/SectorManager';
 import { SharkBoss } from './ai/SharkBoss';
 import { MarineAmbient } from './world/MarineAmbient';
 import { QuestEngine } from './quests/QuestEngine';
@@ -75,6 +76,10 @@ export class Game {
   private buildRotation = 0;
   private ghostTarget: BuildTarget | null = null;
   private readonly buildPicker = new BuildTargetPicker();
+  private readonly flotsamBuckets=new FlotsamBuckets<FlotsamEntity>();
+  private readonly netPosition=new THREE.Vector3();
+  private readonly handPosition=new THREE.Vector3();
+  private readonly localQuery=new THREE.Vector2();
 
   // Controles de entrada
   private keys = new Set<string>();
@@ -488,12 +493,14 @@ export class Game {
     }
 
     // Gancho
-    const handPos = this.player.position.clone().add(new THREE.Vector3(0, 1.25, 0));
+    const handPos = this.handPosition.copy(this.player.position);
+    handPos.y+=1.25;
     this.hook.update(dt, handPos, this.sector, this.clock.elapsedSeconds, this.weather.stormFactor, (loot) => {
       this.collectLoot(loot, 'hook');
     });
 
     // Chefe B01 Mandíbula Branca
+    const previousSharkState=this.shark.state;
     this.shark.update(
       dt,
       this.raftGrid,
@@ -509,8 +516,12 @@ export class Game {
       },
       () => this.sfx.playSharkAlert()
     );
-    this.raftRenderer.syncWithGrid(this.raftGrid);
-
+    // O dano estrutural só é aplicado na entrada em BITING; demais alterações
+    // já sincronizam nas ações de construção, reparo, restauração e colheita.
+    if(previousSharkState!=='BITING'&&this.shark.state==='BITING'){
+      this.raftRenderer.syncWithGrid(this.raftGrid);
+      this.quests.syncFoundationCount(this.raftGrid.foundations.size);
+    }
 
     // Autosave a cada 90s quando seguro
     this.autosaveTimer += dt;
@@ -552,15 +563,25 @@ export class Game {
   }
 
   private updateCollectorNets(): void {
-    for (const mod of this.raftGrid.modules.values()) {
-      if (mod.kind !== 'rede_coleta') continue;
-      const wp = this.raftRenderer.getCellWorldPosition(mod.gx, mod.gz);
-      for (let i = this.sector.flotsam.length - 1; i >= 0; i--) {
-        const f = this.sector.flotsam[i];
-        if (Math.hypot(f.x - wp.x, f.z - wp.z) < 1.35) {
-          const removed = this.sector.removeFlotsam(f.id);
-          if (removed) {
-            this.collectLoot(removed.loot, 'net');
+    // Bases pequenas mantêm o caminho direto; bases grandes usam grade espacial.
+    const nets=[];
+    for(const mod of this.raftGrid.modules.values())if(mod.kind==='rede_coleta')nets.push(mod);
+    if(nets.length===0||this.sector.flotsam.length===0)return;
+    const useBuckets=nets.length>=6&&this.sector.flotsam.length>=12;
+    if(useBuckets)this.flotsamBuckets.rebuild(this.sector.flotsam);
+    for(const mod of nets){
+      const wp=this.raftRenderer.getCellWorldPosition(mod.gx,mod.gz,this.netPosition);
+      if(useBuckets){
+        for(const f of this.flotsamBuckets.query(wp.x,wp.z,1.35)){
+          const removed=this.sector.removeFlotsam(f.id);
+          if(removed)this.collectLoot(removed.loot,'net');
+        }
+      }else{
+        for(let i=this.sector.flotsam.length-1;i>=0;i--){
+          const f=this.sector.flotsam[i],dx=f.x-wp.x,dz=f.z-wp.z;
+          if(dx*dx+dz*dz<1.35*1.35){
+            const removed=this.sector.removeFlotsam(f.id);
+            if(removed)this.collectLoot(removed.loot,'net');
           }
         }
       }
@@ -576,6 +597,7 @@ export class Game {
           mod.readyCount = 2;
           this.hud.pushToast('Fruto salino cresceu na horta! Pressione [E] para colher.', 'success');
         }
+        this.raftRenderer.syncDynamicModule(mod);
       }
     }
   }
@@ -823,9 +845,10 @@ export class Game {
 
   private tryPickupNearbyFlotsam(radius: number): boolean {
     let bestId: string | null = null;
-    let bestDist = radius;
+    let bestDist = radius*radius;
     for (const f of this.sector.flotsam) {
-      const d = Math.hypot(f.x - this.player.position.x, f.z - this.player.position.z);
+      const dx=f.x-this.player.position.x,dz=f.z-this.player.position.z;
+      const d=dx*dx+dz*dz;
       if (d < bestDist) {
         bestDist = d;
         bestId = f.id;
@@ -933,32 +956,13 @@ export class Game {
   }
 
   private findNearestModule(maxDist: number) {
-    let best = null;
-    let bestDist = maxDist;
-    for (const mod of this.raftGrid.modules.values()) {
-      const wp = this.raftRenderer.getCellWorldPosition(mod.gx, mod.gz);
-      const d = Math.hypot(wp.x - this.player.position.x, wp.z - this.player.position.z);
-      if (d < bestDist) {
-        bestDist = d;
-        best = mod;
-      }
-    }
-    return best;
+    const p=this.raftRenderer.worldToLocalXZ(this.player.position.x,this.player.position.z,this.localQuery);
+    return nearestGridEntry(this.raftGrid.modules,p.x,p.y,maxDist);
   }
 
   private findNearestDamagedFoundation(maxDist: number) {
-    let best = null;
-    let bestDist = maxDist;
-    for (const f of this.raftGrid.foundations.values()) {
-      if (f.hp >= f.maxHp) continue;
-      const wp = this.raftRenderer.getCellWorldPosition(f.gx, f.gz);
-      const d = Math.hypot(wp.x - this.player.position.x, wp.z - this.player.position.z);
-      if (d < bestDist) {
-        bestDist = d;
-        best = f;
-      }
-    }
-    return best;
+    const p=this.raftRenderer.worldToLocalXZ(this.player.position.x,this.player.position.z,this.localQuery);
+    return nearestGridEntry(this.raftGrid.foundations,p.x,p.y,maxDist,f=>f.hp<f.maxHp);
   }
 
   private buildPanelContext(): PanelContext {

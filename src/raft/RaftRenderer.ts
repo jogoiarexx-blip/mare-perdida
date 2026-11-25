@@ -273,6 +273,11 @@ export class RaftRenderer {
     return g;
   }
 
+  syncDynamicModule(mod: PlacedModule): void {
+    const grp=this.moduleMeshes.get(cellKey(mod.gx,mod.gz));
+    if(grp)this.updateModuleVisual(grp,mod);
+  }
+
   private updateModuleVisual(grp: THREE.Group, mod: PlacedModule): void {
     if (mod.kind === 'vela' && grp.children[1]) {
       grp.children[1].scale.y = mod.active ? 1.0 : 0.25;
@@ -317,17 +322,19 @@ export class RaftRenderer {
     };
   }
 
-  localToWorld(lx: number, ly: number, lz: number): THREE.Vector3 {
-    const v = new THREE.Vector3(lx, ly, lz);
-    v.applyAxisAngle(new THREE.Vector3(0, 1, 0), this.heading);
-    v.x += this.x;
-    v.z += this.z;
-    v.y += this.root.position.y;
-    return v;
+  worldToLocalXZ(wx:number,wz:number,out=new THREE.Vector2()):THREE.Vector2 {
+    const dx=wx-this.x,dz=wz-this.z;
+    const c=Math.cos(this.heading),s=Math.sin(this.heading);
+    return out.set(dx*c-dz*s,dx*s+dz*c);
   }
 
-  getCellWorldPosition(gx: number, gz: number): THREE.Vector3 {
-    return this.localToWorld(gx * RaftGrid.CELL_SIZE, 0.25, gz * RaftGrid.CELL_SIZE);
+  localToWorld(lx: number, ly: number, lz: number, out=new THREE.Vector3()): THREE.Vector3 {
+    const c=Math.cos(this.heading),s=Math.sin(this.heading);
+    return out.set(this.x+lx*c+lz*s,this.root.position.y+ly,this.z-lx*s+lz*c);
+  }
+
+  getCellWorldPosition(gx: number, gz: number, out=new THREE.Vector3()): THREE.Vector3 {
+    return this.localToWorld(gx * RaftGrid.CELL_SIZE, 0.25, gz * RaftGrid.CELL_SIZE,out);
   }
 
   dispose(): void {
