@@ -1120,9 +1120,13 @@ export class Game {
     if (!this.ghostTarget) return;
     const { gx, gz } = this.ghostTarget;
     const kind=this.buildRecipe?.placesStructure;
-    const mod=kind&&isArchitecture(kind)?this.raftGrid.modulesAt(gx,gz).find(m=>m.kind===kind&&(!['parede','porta','janela','corrimao'].includes(kind)||m.rotation===this.buildRotation)):undefined;
+    const mod=kind?this.raftGrid.modulesAt(gx,gz).find(m=>m.kind===kind&&(!['parede','porta','janela','corrimao'].includes(kind)||m.rotation===this.buildRotation)):undefined;
     if(mod){
-      this.raftGrid.modules.delete(moduleKey(mod.kind,gx,gz,mod.rotation));this.inventory.addItem('madeira',1);this.raftRenderer.syncWithGrid(this.raftGrid);this.updateBuildGhost();this.hud.pushToast('Peça de cabine desmontada.','info');return;
+      if(mod.storedItems&&Object.values(mod.storedItems).some(v=>v>0)){this.hud.pushToast('Esvazie o baú antes de desmontar.','warn');return;}
+      this.raftGrid.modules.delete(moduleKey(mod.kind,gx,gz,mod.rotation));
+      const recipe=this.buildRecipe!;
+      for(const ingredient of recipe.ingredients){const count=Math.floor(ingredient.count/2);if(count>0)this.inventory.addItem(ingredient.itemId,count);}
+      this.raftRenderer.syncWithGrid(this.raftGrid);this.updateBuildGhost();this.hud.pushToast('Módulo desmontado.','info');return;
     }
     if(kind&&kind!=='fundacao'&&kind!=='borda_reforcada'){this.hud.pushToast('Selecione a peça correspondente para desmontar.','warn');return;}
     if(this.raftGrid.modulesAt(gx,gz).length){this.hud.pushToast('Desmonte os módulos antes de remover a fundação.','warn');return;}
