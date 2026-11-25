@@ -37,6 +37,11 @@ export class HUD {
   private dialogueQueue: Array<{ speaker: string; lines: string[] }> = [];
   private currentLineIdx = 0;
   private hotbarSignature = '';
+  private readonly rendered = new Map<HTMLElement,string>();
+  private updateMarkup(el:HTMLElement,html:string):void {
+    if(this.rendered.get(el)===html)return;
+    this.rendered.set(el,html);el.innerHTML=html;
+  }
 
   onSelectHotbar?: (idx: number) => void;
   onOpenPanel?: (tab: 'mochila' | 'construcao' | 'diario' | 'opcoes') => void;
@@ -217,7 +222,7 @@ export class HUD {
       rows.push({ label: 'Oxigênio', icon: 'oxigenio', val: s.oxygen, max: s.maxOxygen, color: '#a78bfa' });
     }
 
-    this.vitalsEl.innerHTML = rows
+    this.updateMarkup(this.vitalsEl, rows
       .map(
         (r) => `
       <div class="vital-row">
@@ -226,16 +231,16 @@ export class HUD {
         <span class="vital-val">${Math.ceil(r.val)}</span>
       </div>`
       )
-      .join('');
+      .join(''));
 
     const b = snap.buoyancy;
     const massWarn = b.overweight ? 'SOBREPESO' : b.lowMarginWarning ? 'Margem <15%' : 'Estável';
-    this.compassEl.innerHTML = `
+    this.updateMarkup(this.compassEl, `
       <span>Dia ${snap.dayCount} · ${snap.clockText} (${snap.weather})</span>
       <span>${gameIcon('bussola')} ${snap.compassText}</span>
       <span>${gameIcon('peso')} ${b.totalMass}/${b.capacity} (${massWarn})</span>
       <span style="color:var(--muted);">${snap.saveStatus}</span>
-    `;
+    `);
 
     const active = snap.quests.getActiveMainQuest();
     let questHtml = '';
@@ -258,10 +263,10 @@ export class HUD {
     if (snap.buildModeLabel) {
       questHtml += `<div style="margin-top:6px;color:#34d399;font-weight:600;">${gameIcon('construcao')} Construindo: ${snap.buildModeLabel} ([R] Girar · [Click] Colocar · [B/Esc] Sair)</div>`;
     }
-    this.questEl.innerHTML = questHtml;
+    this.updateMarkup(this.questEl,questHtml);
 
     if (snap.promptText) {
-      this.promptEl.textContent = snap.promptText;
+      if(this.promptEl.textContent!==snap.promptText)this.promptEl.textContent = snap.promptText;
       this.promptEl.classList.remove('hidden');
     } else {
       this.promptEl.classList.add('hidden');

@@ -440,3 +440,6 @@ body,
 .touch-btn { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; font-size:11px; }
 .high-contrast .game-icon { color:#fff !important; }
 @media(max-width:600px){ .hotbar { gap:3px; padding:4px; } .hotbar .slot-btn { width:min(46px,calc((100vw - 42px)/8)); height:46px; } .hotbar .game-icon.icon-item { width:26px; height:26px; } .vital-label { width:65px; gap:3px; } .vital-row { gap:4px; } .vital-val { width:21px; } }
+
+/* Evita recomposição cara de blur no canvas móvel; mantém transparência do painel. */
+@media(pointer:coarse){.glass-card{backdrop-filter:none;}}

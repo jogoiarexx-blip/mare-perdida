@@ -53,3 +53,7 @@
 
 ### Melhoria de construção — mira e feedback
 - Interseção analítica com plano local do convés, respeitando inclinação, rotação e alcance de 5,5 m; preview atualizado após a câmera, revalidação no clique e mensagens específicas de bloqueio. Corrigida conversão horizontal da grade com rotação. Testes de seleção, materiais, limite e ocupação adicionados; teste manual PC/mobile pendente.
+
+
+### Desempenho — lote de fundações, HUD e resolução
+- Fundações e aros metálicos instanciados em dois lotes, cores por instância; matrizes só reenviadas quando muda estado visual. Prévia, módulos, saves e física preservados. HUD 10 Hz (12,5 Hz na construção), sem reescrever se conteúdo igual; menus pausados até 15 FPS; sombras 8/20 Hz; resolução adaptativa e opção baixa/alta em tempo real. Blur removido em tela touch. Testes unitários adicionados; FPS comparativo e testes reais de GPU/mobile pendentes.

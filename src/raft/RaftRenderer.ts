@@ -14,7 +14,12 @@ export class RaftRenderer {
   z = 0;
   heading = 0;
 
-  private foundationMeshes = new Map<string, THREE.Group>();
+  private deckBatch!: THREE.InstancedMesh;
+  private trimBatch!: THREE.InstancedMesh;
+  private batchCapacity = 0;
+  private foundationSignature = '';
+  private readonly instanceMatrix = new THREE.Matrix4();
+  private readonly instanceColor = new THREE.Color();
   private moduleMeshes = new Map<string, THREE.Group>();
   private readonly moduleTemplates = new Map<PlacedModule['kind'], THREE.Group>();
   private ghostMesh: THREE.Mesh;
@@ -22,10 +27,7 @@ export class RaftRenderer {
   private readonly deckGeo = plankDeck();
   private readonly trimGeo = reinforcedDeckFrame();
   private readonly ghostBoxGeo = new THREE.BoxGeometry(0.94, 0.36, 0.94);
-  private readonly plankMat = new THREE.MeshStandardMaterial({ color: 0x9c6b3b, roughness: 0.85 });
-  private readonly reinforcedWoodMat = new THREE.MeshStandardMaterial({ color: 0x725039, roughness: 0.82 });
-  private readonly coreMat = new THREE.MeshStandardMaterial({ color: 0xb68249, roughness: 0.78 });
-  private readonly damagedMat = new THREE.MeshStandardMaterial({ color: 0x6e3b2e, roughness: 0.9 });
+  private readonly plankMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.83 });
   private readonly reinforcedMat = new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, metalness: 0.35, roughness: 0.48 });
 
   private readonly ghostValidMat = new THREE.MeshBasicMaterial({
@@ -47,46 +49,59 @@ export class RaftRenderer {
     this.root.add(this.ghostMesh);
   }
 
+  /** Uma chamada de desenho para a madeira e outra para todas as bordas metálicas. */
+  private ensureFoundationBatches(required: number): void {
+    if (this.batchCapacity >= required && this.batchCapacity > 0) return;
+    if (this.batchCapacity) {
+      this.root.remove(this.deckBatch,this.trimBatch);
+      this.deckBatch.dispose(); this.trimBatch.dispose();
+    }
+    this.batchCapacity=Math.max(16,Math.ceil(required/16)*16);
+    this.deckBatch=new THREE.InstancedMesh(this.deckGeo,this.plankMat,this.batchCapacity);
+    this.deckBatch.name='foundation-decks';
+    this.deckBatch.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    this.deckBatch.castShadow=true; this.deckBatch.receiveShadow=true;
+    this.deckBatch.count=0;
+    this.trimBatch=new THREE.InstancedMesh(this.trimGeo,this.reinforcedMat,this.batchCapacity);
+    this.trimBatch.name='foundation-reinforcements';
+    this.trimBatch.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    this.trimBatch.receiveShadow=true; this.trimBatch.castShadow=false;
+    this.trimBatch.count=0;
+    this.root.add(this.deckBatch,this.trimBatch);
+    this.foundationSignature='';
+  }
+
+  private syncFoundations(grid: RaftGrid): void {
+    this.ensureFoundationBatches(grid.foundations.size);
+    let signature='';
+    for(const [key,cell] of grid.foundations) {
+      signature+=key+':'+Number(Boolean(cell.isCore))+Number(cell.reinforced)+Number(cell.hp<cell.maxHp*.55)+';';
+    }
+    if(signature===this.foundationSignature) return;
+    this.foundationSignature=signature;
+    let deck=0,trim=0;
+    for(const cell of grid.foundations.values()) {
+      const x=cell.gx*RaftGrid.CELL_SIZE,z=cell.gz*RaftGrid.CELL_SIZE;
+      this.instanceMatrix.makeTranslation(x,.08,z);
+      this.deckBatch.setMatrixAt(deck,this.instanceMatrix);
+      const color=cell.hp<cell.maxHp*.55?0x6e3b2e:cell.isCore?0xb68249:cell.reinforced?0x725039:0x9c6b3b;
+      this.deckBatch.setColorAt(deck++,this.instanceColor.setHex(color));
+      if(cell.reinforced){
+        this.instanceMatrix.makeTranslation(x,0,z);
+        this.trimBatch.setMatrixAt(trim++,this.instanceMatrix);
+      }
+    }
+    this.deckBatch.count=deck; this.trimBatch.count=trim;
+    this.deckBatch.visible=deck>0; this.trimBatch.visible=trim>0;
+    this.deckBatch.instanceMatrix.needsUpdate=true;
+    if(this.deckBatch.instanceColor) this.deckBatch.instanceColor.needsUpdate=true;
+    this.trimBatch.instanceMatrix.needsUpdate=true;
+    this.deckBatch.computeBoundingSphere();
+    this.trimBatch.computeBoundingSphere();
+  }
+
   syncWithGrid(grid: RaftGrid): void {
-    // Remover fundações antigas
-    for (const [key, grp] of this.foundationMeshes.entries()) {
-      if (!grid.foundations.has(key)) {
-        this.root.remove(grp);
-        this.foundationMeshes.delete(key);
-      }
-    }
-
-    // Criar/atualizar fundações
-    for (const [key, cell] of grid.foundations.entries()) {
-      let grp = this.foundationMeshes.get(key);
-      if (!grp) {
-        grp = new THREE.Group();
-        const deck = new THREE.Mesh(this.deckGeo, cell.isCore ? this.coreMat : this.plankMat);
-        deck.castShadow = true;
-        deck.receiveShadow = true;
-        deck.position.y = 0.08;
-        grp.add(deck);
-
-        const trim = new THREE.Mesh(this.trimGeo, this.reinforcedMat);
-        trim.castShadow = false;
-        trim.receiveShadow = true;
-        trim.visible = cell.reinforced;
-        grp.add(trim);
-
-        grp.position.set(cell.gx * RaftGrid.CELL_SIZE, 0, cell.gz * RaftGrid.CELL_SIZE);
-        this.root.add(grp);
-        this.foundationMeshes.set(key, grp);
-      }
-
-      const deck = grp.children[0] as THREE.Mesh;
-      const trim = grp.children[1] as THREE.Mesh;
-      trim.visible = cell.reinforced;
-      if (cell.hp < cell.maxHp * 0.55) {
-        deck.material = this.damagedMat;
-      } else {
-        deck.material = cell.isCore ? this.coreMat : cell.reinforced ? this.reinforcedWoodMat : this.plankMat;
-      }
-    }
+    this.syncFoundations(grid);
 
     // Remover módulos antigos
     for (const [key, grp] of this.moduleMeshes.entries()) {
@@ -326,9 +341,7 @@ export class RaftRenderer {
     this.deckGeo.dispose();
     this.trimGeo.dispose();
     this.plankMat.dispose();
-    this.reinforcedWoodMat.dispose();
-    this.coreMat.dispose();
-    this.damagedMat.dispose();
+    if(this.batchCapacity){ this.deckBatch.dispose(); this.trimBatch.dispose(); }
     this.reinforcedMat.dispose();
     this.ghostValidMat.dispose();
     this.ghostInvalidMat.dispose();

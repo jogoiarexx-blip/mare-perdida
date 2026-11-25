@@ -360,6 +360,12 @@ export class Modals {
       <div class="grid-2">
         <div>
           <h3 style="margin-top:0;">Acessibilidade & Vídeo</h3>
+          <label style="display:block;margin-bottom:8px;">Qualidade gráfica:
+            <select id="opt-quality" class="btn">
+              <option value="alto" ${o.quality==='alto'?'selected':''}>Alta — resolução adaptativa</option>
+              <option value="baixo" ${o.quality==='baixo'?'selected':''}>Baixa — desempenho</option>
+            </select>
+          </label>
           <label style="display:block;margin-bottom:8px;">Escala da HUD (${o.hudScale.toFixed(2)}x)
             <input type="range" id="opt-scale" min="0.8" max="1.35" step="0.05" value="${o.hudScale}" style="width:100%;" />
           </label>
@@ -399,6 +405,9 @@ export class Modals {
       ctx.onOptionsChanged({ ...o });
     };
 
+    body.querySelector('#opt-quality')?.addEventListener('change', (e) => {
+      o.quality=(e.target as HTMLSelectElement).value==='baixo'?'baixo':'alto';commit();
+    });
     body.querySelector('#opt-scale')?.addEventListener('input', (e) => {
       o.hudScale = Number((e.target as HTMLInputElement).value);
       commit();

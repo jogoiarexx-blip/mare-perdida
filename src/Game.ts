@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { EventBus } from './core/EventBus';
 import { WorldClock } from './core/Clock';
 import { GameLoop } from './core/GameLoop';
+import { AdaptiveResolution } from './core/RenderBudget';
 import { ITEMS } from './data/items';
 import type { RecipeDef, StructureKind } from './data/recipes';
 import { Inventory } from './player/Inventory';
@@ -33,6 +34,11 @@ export class Game {
   private readonly sfx = new SoundFX();
 
   private renderer!: THREE.WebGLRenderer;
+  private resolution!: AdaptiveResolution;
+  private activeQuality: GameOptions['quality'] | null = null;
+  private hudElapsed=1;
+  private shadowElapsed=1;
+  private idleElapsed=1;
   private scene!: THREE.Scene;
   private camera!: THREE.PerspectiveCamera;
   private ocean!: OceanRenderer;
@@ -100,11 +106,13 @@ export class Game {
       </div>`;
       throw new Error('WebGL indisponível');
     }
-    const maxDpr = this.isMobileDevice() ? 1.5 : 2;
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, maxDpr));
+    this.resolution = new AdaptiveResolution(this.options.quality==='baixo',this.isMobileDevice(),window.devicePixelRatio||1);
+    this.renderer.setPixelRatio(this.resolution.scale);
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
+    this.renderer.shadowMap.autoUpdate = false;
+    this.renderer.shadowMap.needsUpdate = true;
   }
 
   private initScene(): void {
@@ -112,9 +120,10 @@ export class Game {
     this.camera = new THREE.PerspectiveCamera(this.options.fov, window.innerWidth / window.innerHeight, 0.1, 240);
 
     const low = this.options.quality === 'baixo';
+    this.activeQuality=this.options.quality;
     this.ocean = new OceanRenderer(low);
     this.scene.add(this.ocean.mesh);
-    this.ambient = new MarineAmbient(this.scene, low);
+    this.ambient = new MarineAmbient(this.scene, false);
 
     this.weather = new WeatherSystem(this.scene, !low);
     this.sector = new SectorManager(this.seed);
@@ -512,6 +521,23 @@ export class Game {
   }
 
   private render(frameDt: number): void {
+    const idle=!this.started||this.loop.paused;
+    this.hudElapsed+=frameDt;
+    this.shadowElapsed+=frameDt;
+    if(idle){
+      this.resolution.reset();
+      this.idleElapsed+=frameDt;
+      if(this.idleElapsed<1/15)return;
+      this.idleElapsed=0;
+    }else{
+      this.idleElapsed=1;
+      const ratio=this.resolution.sample(frameDt);
+      if(ratio!==null)this.renderer.setPixelRatio(ratio);
+    }
+    const low=this.options.quality==='baixo';
+    if(!idle&&this.shadowElapsed>=(low?.125:.05)){
+      this.renderer.shadowMap.needsUpdate=true;this.shadowElapsed=0;
+    }
     this.ocean.update(this.raftRenderer.x, this.raftRenderer.z, this.clock.elapsedSeconds, this.weather.stormFactor);
     this.player.applyToCamera(this.camera, this.clock.elapsedSeconds, this.options.cameraBob);
     if (this.started && !this.modals.isOpen()) this.updateBuildGhost();
@@ -519,7 +545,8 @@ export class Game {
     this.ambient.update(this.camera.position.x,this.camera.position.z,this.camera.position.y,this.clock.elapsedSeconds,this.weather.stormFactor,this.options.quality==='baixo');
     this.renderer.render(this.scene, this.camera);
 
-    if (this.started && frameDt >= 0) {
+    if (this.started && this.hudElapsed >= (this.buildRecipe ? .08 : .10)) {
+      this.hudElapsed=0;
       this.updateHud();
     }
   }
@@ -1051,6 +1078,17 @@ export class Game {
   private applyOptions(opts: GameOptions): void {
     this.options = opts;
     this.store.saveOptions(opts);
+    if(this.activeQuality!==opts.quality){
+      const low=opts.quality==='baixo';
+      this.scene.remove(this.ocean.mesh);this.ocean.dispose();
+      this.ocean=new OceanRenderer(low);this.scene.add(this.ocean.mesh);
+      this.resolution=new AdaptiveResolution(low,this.isMobileDevice(),window.devicePixelRatio||1);
+      this.renderer.setPixelRatio(this.resolution.scale);
+      this.weather.sunLight.shadow.map?.dispose();this.weather.sunLight.shadow.map=null;
+      this.weather.sunLight.shadow.mapSize.set(low?512:1024,low?512:1024);
+      this.renderer.shadowMap.needsUpdate=true;
+      this.activeQuality=opts.quality;
+    }
     document.documentElement.style.setProperty('--hud-scale', String(opts.hudScale));
     document.body.classList.toggle('high-contrast', opts.highContrast);
     this.camera.fov = opts.fov;
