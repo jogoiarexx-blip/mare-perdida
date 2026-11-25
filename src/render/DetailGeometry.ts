@@ -42,11 +42,39 @@ export function sharkBelly(): THREE.BufferGeometry {
 export function sharkEyes(): THREE.BufferGeometry {
   return combine([oval(.06,.055,.06,-.33,-.07,-.95,8),oval(.06,.055,.06,.33,-.07,-.95,8)]);
 }
+/** Madeira com cinco tons individuais, ainda agrupada em uma única geometria. */
 export function plankDeck(): THREE.BufferGeometry {
   const pieces: THREE.BufferGeometry[]=[];
-  for(let i=0;i<5;i++) pieces.push(box(.182,.15,.96,(i-2)*.194,.035,0));
-  for(const z of [-.32,.32]) pieces.push(box(.96,.08,.13,0,-.075,z));
+  const shades=[.87,1,.94,.79,.96];
+  const tint=(g:THREE.BufferGeometry,shade:number)=>{
+    const count=g.getAttribute('position').count;
+    const colors=new Float32Array(count*3);
+    colors.fill(shade);
+    g.setAttribute('color',new THREE.BufferAttribute(colors,3));
+    return g;
+  };
+  for(let i=0;i<5;i++) pieces.push(tint(box(.182,.15,.96,(i-2)*.194,.035,0),shades[i]));
+  for(const z of [-.32,.32]) pieces.push(tint(box(.96,.08,.13,0,-.075,z),.72));
   return combine(pieces);
+}
+
+/** Textura procedural compartilhada (16 KiB RGBA, sem arquivos externos). */
+export function weatheredWoodTexture():THREE.DataTexture {
+  const size=64,data=new Uint8Array(size*size*4);
+  for(let y=0;y<size;y++)for(let x=0;x<size;x++){
+    const u=x/size,v=y/size;
+    const grain=Math.sin(2*Math.PI*(u*9+.22*Math.sin(v*2*Math.PI)));
+    const fine=Math.sin(2*Math.PI*(u*21+.12*Math.cos(v*4*Math.PI)));
+    const knot=Math.exp(-((u-.64)**2*160+(v-.42)**2*38));
+    const tone=Math.round(THREE.MathUtils.clamp(225+grain*13+fine*7-knot*26,170,252));
+    const i=(y*size+x)*4;data[i]=tone;data[i+1]=Math.round(tone*.98);data[i+2]=Math.round(tone*.93);data[i+3]=255;
+  }
+  const t=new THREE.DataTexture(data,size,size,THREE.RGBAFormat);
+  t.colorSpace=THREE.SRGBColorSpace;
+  t.wrapS=t.wrapT=THREE.RepeatWrapping;
+  t.magFilter=THREE.LinearFilter;t.minFilter=THREE.LinearMipmapLinearFilter;
+  t.generateMipmaps=true;t.needsUpdate=true;
+  return t;
 }
 export function survivorClothing(): THREE.BufferGeometry {
   const torso=oval(.25,.32,.16,0,1.12,0);
@@ -80,7 +108,7 @@ export function reinforcedDeckFrame(): THREE.BufferGeometry {
     }
   }
   // Uma única malha com cor de vértice para distinguir aço e cabeças dos rebites.
-  const colors = [new THREE.Color(0x99aebb),new THREE.Color(0xe1e7e9)];
+  const colors = [new THREE.Color(0xaabdc8),new THREE.Color(0xe9eef0)];
   for (let i=0;i<rails.length;i++){
     const geo=rails[i], color=colors[i%8<2?0:1];
     const count=geo.getAttribute('position').count;
