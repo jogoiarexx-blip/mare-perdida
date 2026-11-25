@@ -410,7 +410,7 @@ export class Game {
     this.buoyInspected = data.worldFlags.buoyInspected;
     this.sharkRepelledCount = data.worldFlags.sharkRepelledCount;
     this.player.position.set(data.playerPosition.x, data.playerPosition.y, data.playerPosition.z);
-    this.chunks.reset(this.seed);
+    this.chunks.reset(this.seed,this.options.quality==='baixo',data.depletedIslandResources??[]);
     this.chunks.update(this.player.position.x,this.player.position.z,9);
 
     for (const poi of this.sector.pois) {
@@ -478,7 +478,8 @@ export class Game {
       this.survival.stamina > 8,
       raftDeltaX,
       raftDeltaZ,
-      (x,z)=>this.chunks.groundHeight(x,z)
+      (x,z)=>this.chunks.groundHeight(x,z),
+      (x,z,y,fromX,fromZ)=>this.chunks.blocksMovement(x,z,y,fromX,fromZ)
     );
     this.yawDeltaAccum = 0;
     this.pitchDeltaAccum = 0;
@@ -756,6 +757,8 @@ export class Game {
       }
     }
 
+    if(this.harvestIslandResource())return;
+
     // 2. Verificar módulos da jangada ao alcance
     const nearestMod = this.findNearestModule(2.6);
     if (nearestMod) {
@@ -870,6 +873,24 @@ export class Game {
     const removed = this.sector.removeFlotsam(bestId);
     if (!removed) return false;
     this.collectLoot(removed.loot, 'hand');
+    return true;
+  }
+
+  private harvestIslandResource():boolean{
+    const p=this.player.position;
+    const node=this.chunks.nearestResource(p.x,p.z,p.y);
+    if(!node)return false;
+    if(node.kind==='palm'&&this.inventory.getSelectedSlot()?.itemId!=='machado'){
+      this.hud.pushToast('Fabrique e selecione um machado para cortar o coqueiro.','warn');return true;
+    }
+    // Simular toda a coleta primeiro; mochila cheia não remove o recurso.
+    const trial=this.inventory.clone();
+    for(const item of node.loot)if(trial.addItem(item.itemId,item.count).overflow){
+      this.hud.pushToast('Mochila sem espaço. O recurso permanece na ilha.','warn');return true;
+    }
+    if(!this.chunks.harvest(node.id))return true;
+    if(node.kind==='palm')this.inventory.damageSlot(this.inventory.selectedHotbar,1);
+    this.collectLoot(node.loot,'island');
     return true;
   }
 
@@ -1144,6 +1165,7 @@ export class Game {
       survival: this.survival.serialize(),
       raft: this.raftGrid.serialize(),
       quests: this.quests.serialize(),
+      depletedIslandResources:this.chunks.serializeResources(),
       worldFlags: {
         wreckLooted: this.wreckLooted,
         buoyInspected: this.buoyInspected,
@@ -1235,6 +1257,8 @@ export class Game {
       }
     }
 
+    const resource=this.chunks.nearestResource(this.player.position.x,this.player.position.z,this.player.position.y);
+    if(resource)return '[E] '+resource.label;
     const mod = this.findNearestModule(2.6);
     if (mod) {
       const labels: Record<string, string> = {

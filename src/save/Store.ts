@@ -1,3 +1,4 @@
+import { validResourceId } from '../world/IslandResources';
 import type { SerializedInventory } from '../player/Inventory';
 import type { SurvivalState } from '../player/Survival';
 import type { SerializedRaftGrid } from '../raft/Grid';
@@ -31,6 +32,7 @@ export interface WorldSaveData {
   survival: SurvivalState;
   raft: SerializedRaftGrid;
   quests: SerializedQuestEngine;
+  depletedIslandResources?: string[];
   worldFlags: {
     wreckLooted: boolean;
     buoyInspected: boolean;
@@ -97,7 +99,8 @@ export function validateSaveData(raw: unknown): raw is WorldSaveData {
     Boolean(obj.survival) &&
     Boolean(obj.raft) &&
     Array.isArray(obj.raft?.foundations) &&
-    Boolean(obj.quests)
+    Boolean(obj.quests) &&
+    (obj.depletedIslandResources===undefined || (Array.isArray(obj.depletedIslandResources) && obj.depletedIslandResources.every(validResourceId)))
   );
 }
 

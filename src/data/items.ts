@@ -148,6 +148,10 @@ export const ITEMS: Record<string, ItemDef> = {
     stackMax: 20,
     icon: '🌱',
   },
+  machado: {
+    id:'machado',name:'Machado de pedra',description:'Corta coqueiros nas ilhas. Selecione na barra rápida e pressione E.',category:'ferramenta',
+    stackMax:1,maxDurability:60,icon:'🪓',protectedOnDeath:true,
+  },
   gancho: {
     id: 'gancho',
     name: 'Gancho de coleta',

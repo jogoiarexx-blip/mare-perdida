@@ -78,7 +78,8 @@ export class PlayerController {
     canSprint: boolean,
     raftDeltaX: number,
     raftDeltaZ: number,
-    groundHeight: (x:number,z:number)=>number|null = ()=>null
+    groundHeight: (x:number,z:number)=>number|null = ()=>null,
+    blocksMovement:(x:number,z:number,y:number,fromX:number,fromZ:number)=>boolean=()=>false
   ): void {
     this.yaw -= input.yawDelta;
     this.pitch = THREE.MathUtils.clamp(this.pitch - input.pitchDelta, -1.32, 1.28);
@@ -125,7 +126,14 @@ export class PlayerController {
       }
     }
 
-    this.position.addScaledVector(this.velocity, dt);
+    // Movimento por eixo permite deslizar ao redor de árvores e rochas.
+    const nextX=this.position.x+this.velocity.x*dt;
+    if(!blocksMovement(nextX,this.position.z,this.position.y,this.position.x,this.position.z))this.position.x=nextX;
+    else this.velocity.x=0;
+    const nextZ=this.position.z+this.velocity.z*dt;
+    if(!blocksMovement(this.position.x,nextZ,this.position.y,this.position.x,this.position.z))this.position.z=nextZ;
+    else this.velocity.z=0;
+    this.position.y+=this.velocity.y*dt;
 
     // Colisão firme com o convés da jangada para nunca cair pelo chão
     const postCell = raft.worldToLocalGrid(this.position.x, this.position.z);

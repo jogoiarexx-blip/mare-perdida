@@ -76,6 +76,11 @@ export const RECIPES: RecipeDef[] = [
     outputCount: 1,
   },
   {
+    id:'rec_machado',name:'Machado de pedra',description:'Ferramenta para cortar coqueiros nas ilhas.',bench:'manual',
+    ingredients:[{itemId:'madeira',count:3},{itemId:'pedra',count:2},{itemId:'corda',count:1}],
+    outputItemId:'machado',outputCount:1,
+  },
+  {
     id: 'rec_lanca',
     name: 'Lança de madeira',
     description: 'Permite defender a jangada contra Mandíbula Branca.',
