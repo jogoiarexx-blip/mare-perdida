@@ -118,3 +118,22 @@ export function reinforcedDeckFrame(): THREE.BufferGeometry {
   }
   return combine(rails);
 }
+
+/** Acessórios de sobrevivência unidos por material. */
+export function survivorGear():THREE.BufferGeometry {
+  return combine([
+    box(.32,.075,.29,0,.87,0),
+    box(.075,.34,.055,-.13,1.15,-.20),box(.075,.34,.055,.13,1.15,-.20),
+    box(.08,.08,.035,0,1.02,-.21),box(.30,.08,.24,0,1.71,0),
+    box(.23,.24,.12,0,1.13,.23),
+  ]);
+}
+export function survivorGlove():THREE.BufferGeometry {
+  return oval(.071,.085,.072,0,-.58,0,8);
+}
+export function sharkGills():THREE.BufferGeometry {
+  const pieces:THREE.BufferGeometry[]=[];
+  for(const side of [-1,1])for(let i=0;i<4;i++)
+    pieces.push(box(.018,.16,.026,side*(.40-i*.008),-.12,-.48-i*.075).rotateY(0));
+  return combine(pieces);
+}
