@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { chunkAt,chunkKey,chunkRadius,desiredChunks,islandForChunk,islandHeight,islandBiome,type IslandSpec } from './ChunkLayout';
-import { palmCrown,ruinGeometry,vegetationLod } from './IslandGeometry';
+import { palmCrown,ruinGeometry,vegetationLod,coastalRock } from './IslandGeometry';
 import {validResourceId,blocksResourceMovement,type IslandResource,type ResourceKind} from './IslandResources';
 
 import {prepareChunk,terrainFromPayload,type ChunkPayload,type ChunkResponse} from './ChunkPayload';
@@ -35,7 +35,7 @@ export class ChunkManager {
   private readonly ruinGeo=ruinGeometry();
   private readonly ruinMat=new THREE.MeshStandardMaterial({color:0x88857a,roughness:1});
   private readonly tint=new THREE.Color();
-  private readonly rockGeo=new THREE.DodecahedronGeometry(.7,0);
+  private readonly rockGeo=coastalRock();
   private readonly trunkMat=new THREE.MeshStandardMaterial({color:0x8d6744,roughness:.95});
   private readonly crownMat=new THREE.MeshStandardMaterial({color:0x46844b,roughness:.9,side:THREE.DoubleSide});
   private readonly rockMat=new THREE.MeshStandardMaterial({color:0x827b6d,roughness:1});
@@ -162,8 +162,8 @@ export class ChunkManager {
     v.vegetationLevel=level;v.decor.visible=level!==2;
     const palms=v.batches.get('palm')!,rocks=v.batches.get('rock')!;
     palms[0].geometry=level===0?this.trunkGeo:this.simpleTrunkGeo;
-    palms[1].geometry=level===0?this.crownGeo:this.simpleCrownGeo;
-    rocks[0].geometry=level===0?this.rockGeo:this.simpleRockGeo;
+    palms[1].geometry=level===0&&!this.low?this.crownGeo:this.simpleCrownGeo;
+    rocks[0].geometry=level===0&&!this.low?this.rockGeo:this.simpleRockGeo;
     for(const kind of ['bush','chest'] as const)for(const m of v.batches.get(kind)!)m.visible=level===0&&m.count>0;
   }
   private refreshResources(v:IslandView):void{
@@ -205,7 +205,7 @@ export class ChunkManager {
     const biome=islandBiome(spec);
     const crownTint={tropical:0xffffff,rochoso:0xb6bd93,verde:0x93df9e,arenoso:0xd8cf8e}[biome];
     const crowns=batches.get('palm')![1];
-    for(let i=0;i<crowns.count;i++)crowns.setColorAt(i,this.tint.setHex(crownTint));
+    for(let i=0;i<crowns.count;i++)crowns.setColorAt(i,this.tint.setHex(crownTint).multiplyScalar(.86+.14*Math.sin(i*2.4+spec.seed)**2));
     if(crowns.instanceColor)crowns.instanceColor.needsUpdate=true;
     const ruin=new THREE.Mesh(this.ruinGeo,this.ruinMat);
     const chest=resources.find(n=>n.kind==='chest')!;
