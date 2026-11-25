@@ -26,7 +26,8 @@ import { seabedHeight,oxygenCapacity } from './world/DiveLayout';
 import { ChunkManager } from './world/ChunkManager';
 import { biomeLabel } from './world/ChunkLayout';
 import { Discovery,helmStep,paddleStep,motorStep,radarIsland,MOTOR_CAPACITY,FUEL_SECONDS,deckDistance,bearing,cardinal,headingDegrees,minimapSvg } from './world/Navigation';
-import { WeatherSystem } from './world/Weather';
+import { WeatherSystem,weatherAt } from './world/Weather';
+import { WaterEffects } from './world/WaterEffects';
 import { SectorManager, type FlotsamEntity } from './world/SectorManager';
 import { SharkBoss } from './ai/SharkBoss';
 import { MarineAmbient } from './world/MarineAmbient';
@@ -55,6 +56,7 @@ export class Game {
   private camera!: THREE.PerspectiveCamera;
   private ocean!: OceanRenderer;
   private ambient!: MarineAmbient;
+  private waterFx!: WaterEffects;
   private weather!: WeatherSystem;
   private sector!: SectorManager;
   private chunks!: ChunkManager;
@@ -160,6 +162,7 @@ export class Game {
     this.ocean = new OceanRenderer(low);
     this.scene.add(this.ocean.mesh);
     this.ambient = new MarineAmbient(this.scene, false);
+    this.waterFx = new WaterEffects(this.scene);
 
     this.weather = new WeatherSystem(this.scene, !low);
     this.chunks=new ChunkManager(this.seed,low,true);
@@ -408,6 +411,7 @@ export class Game {
 
   private startNewWorld(difficulty: Difficulty): void {
     this.worldId = `world_${Date.now()}`;
+    this.waterFx.reset();
     this.renderOrigin.reset();this.renderer.shadowMap.needsUpdate=true;
     this.seed = Math.floor(Math.random() * 900000) + 100000;
     this.chunks.reset(this.seed);
@@ -462,6 +466,7 @@ export class Game {
     this.wreckLooted = data.worldFlags.wreckLooted;
     this.buoyInspected = data.worldFlags.buoyInspected;
     this.sharkRepelledCount = data.worldFlags.sharkRepelledCount;
+    this.waterFx.reset();
     this.player.position.set(data.playerPosition.x, data.playerPosition.y, data.playerPosition.z);
     this.chunks.reset(this.seed,this.options.quality==='baixo',data.depletedIslandResources??[]);
     this.fauna.reset(data.animalDeltas??[]);this.predators.reset();this.lampEnabled=true;this.dive.reset(this.seed,this.options.quality==='baixo',data.depletedDiveResources??[]);
@@ -476,6 +481,7 @@ export class Game {
 
   private startPlay(): void {
     this.started = true;
+    this.sfx.startAmbience();
     this.loop.paused = false;
     this.modals.closeAll();
   }
@@ -486,6 +492,7 @@ export class Game {
     this.chunks.update(this.player.position.x,this.player.position.z);
     this.discovery.visit(this.player.position.x,this.player.position.z);
     this.clock.advance(dt);
+    this.weather.setWeather(weatherAt(this.seed,this.clock.elapsedSeconds));
     this.weather.update(this.clock.timeOfDay, this.raftRenderer.x, this.raftRenderer.z, dt);
 
     // Movimento da jangada por correnteza, vela e âncora + penalidade por sobrepeso
@@ -557,6 +564,9 @@ export class Game {
       (x,z)=>seabedHeight(x,z,this.seed),
       this.inventory.getItemCount('nadadeiras')>0?1.35:1
     );
+    const pfx=this.player.position;
+    const lowFx=this.options.quality==='baixo';
+    this.waterFx.tick(dt,this.clock.elapsedSeconds,this.weather.stormFactor,lowFx,pfx.x,pfx.y,pfx.z,this.player.inWater,this.player.underwater,Math.hypot(this.player.velocity.x,this.player.velocity.z),this.raftRenderer.x,this.raftRenderer.z,raftDeltaX/dt,raftDeltaZ/dt,Math.max(1,Math.sqrt(this.raftGrid.foundations.size)*.52));
     this.yawDeltaAccum = 0;
     this.pitchDeltaAccum = 0;
 
@@ -631,6 +641,7 @@ export class Game {
 
   private render(frameDt: number): void {
     const idle=!this.started||this.loop.paused;
+    this.sfx.updateAmbience(this.weather.stormFactor,this.player.underwater,idle);
     const safeDt=Math.min(.1,frameDt);
     this.hudElapsed+=safeDt;
     this.shadowElapsed+=safeDt;
