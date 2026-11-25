@@ -18,3 +18,9 @@
 - Em Edge headless, dois contextos locais independentes (desktop e toque emulado, 390 × 844) rejeitaram um convite malformado, negociaram duas conexões reais, trocaram ping nos dois sentidos e detectaram o encerramento remoto. A segunda conexão usou um novo convite. Não houve teste entre redes, em celular físico ou via TURN.
 - No mesmo teste, os dois contextos voltaram ao menu e abriram um novo mundo solo. No desktop, o diário abriu pelo teclado, o save manual foi concluído e o mundo pôde ser retomado após recarregar. Não houve playthrough de coleta, construção, colisões ou combate.
 - `npm test` passou com 15 testes em 6 arquivos. `npm run build` passou com o aviso de tamanho do bundle inicial (168,08 kB gzip contra 167,17 kB na base). O código do diagnóstico carrega sob demanda (2,28 kB gzip). Esses tamanhos são do build local e não medem FPS.
+
+
+### Melhoria visual — geometria procedural
+- Personagem com colete, cabeça, braços e pernas animados; tubarão com silhueta curva, olhos, barbatanas e cauda animada.
+- Convés com tábuas e travessas em uma malha compartilhada; vela curvada; barris, caixotes e garrafas com detalhes geométricos agrupados.
+- Sem downloads novos de modelos ou texturas. Física, save, inventário e missões preservados. Testes de orçamento de triângulos adicionados; desempenho real e avaliação visual ainda pendentes de medição.

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { combine } from '../render/DetailGeometry';
 import { SeededRng } from '../core/SeededRng';
 import { getWaveHeight } from './Ocean';
 
@@ -37,10 +38,18 @@ export class SectorManager {
 
   // Materiais e geometrias compartilhados para reduzir draw calls (orçamento GDD §13)
   private readonly woodGeo = new THREE.BoxGeometry(0.95, 0.14, 0.32);
-  private readonly plasticGeo = new THREE.CylinderGeometry(0.18, 0.22, 0.42, 8);
+  private readonly plasticGeo = combine([new THREE.CylinderGeometry(.18,.22,.42,10),new THREE.CylinderGeometry(.09,.15,.12,10).translate(0,.26,0),new THREE.CylinderGeometry(.10,.10,.06,10).translate(0,.34,0)]);
   private readonly leafGeo = new THREE.ConeGeometry(0.45, 0.14, 5);
-  private readonly crateGeo = new THREE.BoxGeometry(0.85, 0.72, 0.85);
-  private readonly barrelGeo = new THREE.CylinderGeometry(0.38, 0.38, 0.92, 10);
+  private readonly crateGeo = combine([
+    new THREE.BoxGeometry(.79,.68,.79),
+    ...[-.29,.29].map(x=>new THREE.BoxGeometry(.09,.75,.86).translate(x,0,0)),
+    ...[-.27,.27].map(y=>new THREE.BoxGeometry(.86,.07,.86).translate(0,y,0))
+  ]);
+  private readonly barrelGeo = combine([
+    new THREE.CylinderGeometry(.34,.34,.92,14),
+    new THREE.CylinderGeometry(.38,.38,.09,14).translate(0,.30,0),
+    new THREE.CylinderGeometry(.38,.38,.09,14).translate(0,-.30,0)
+  ]);
 
   private readonly woodMat = new THREE.MeshStandardMaterial({ color: 0x9b6b3e, roughness: 0.85 });
   private readonly plasticMat = new THREE.MeshStandardMaterial({ color: 0x3ec6e0, roughness: 0.4 });

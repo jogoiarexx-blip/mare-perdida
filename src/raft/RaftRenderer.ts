@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { plankDeck } from '../render/DetailGeometry';
 import { cellKey, RaftGrid, type PlacedModule } from './Grid';
 import { getWaveHeight, getWaveNormal } from '../world/Ocean';
 import type { StructureKind } from '../data/recipes';
@@ -16,7 +17,7 @@ export class RaftRenderer {
   private moduleMeshes = new Map<string, THREE.Group>();
   private ghostMesh: THREE.Mesh;
 
-  private readonly deckGeo = new THREE.BoxGeometry(0.96, 0.22, 0.96);
+  private readonly deckGeo = plankDeck();
   private readonly trimGeo = new THREE.BoxGeometry(1.0, 0.25, 1.0);
   private readonly plankMat = new THREE.MeshStandardMaterial({ color: 0x9c6b3b, roughness: 0.85 });
   private readonly coreMat = new THREE.MeshStandardMaterial({ color: 0xb68249, roughness: 0.78 });
@@ -161,7 +162,11 @@ export class RaftRenderer {
       case 'vela': {
         const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, 2.3, 8), woodMat);
         mast.position.y = 1.15;
-        const sail = new THREE.Mesh(new THREE.PlaneGeometry(1.15, 1.45), clothMat);
+        const sail = new THREE.Mesh(new THREE.PlaneGeometry(1.15, 1.45, 8, 6), clothMat);
+        const points = sail.geometry.getAttribute('position');
+        for(let i=0;i<points.count;i++) points.setZ(i, .14 * Math.cos(points.getX(i)*Math.PI/1.15) * Math.cos(points.getY(i)*Math.PI/1.45));
+        points.needsUpdate = true;
+        sail.geometry.computeVertexNormals();
         sail.position.set(0, 1.35, 0.12);
         g.add(mast, sail);
         break;

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { survivorClothing, survivorHead, survivorArm, survivorLeg, survivorVest } from '../render/DetailGeometry';
 import { cellKey, RaftGrid } from '../raft/Grid';
 import type { RaftRenderer } from '../raft/RaftRenderer';
 import { getWaveHeight } from '../world/Ocean';
@@ -27,22 +28,26 @@ export class PlayerController {
 
   readonly avatarGroup = new THREE.Group();
   private readonly eyeHeight = 1.58;
+  private readonly limbs: THREE.Group[] = [];
+  private gait = 0;
 
   constructor(scene: THREE.Scene) {
-    // Avatar simples para modo 3ª pessoa
-    const body = new THREE.Mesh(
-      new THREE.CapsuleGeometry(0.26, 0.85, 6, 10),
-      new THREE.MeshStandardMaterial({ color: 0x2d6d8e, roughness: 0.7 })
-    );
-    body.position.y = 0.82;
-    body.castShadow = true;
-    const head = new THREE.Mesh(
-      new THREE.SphereGeometry(0.22, 10, 10),
-      new THREE.MeshStandardMaterial({ color: 0xe6b89c, roughness: 0.65 })
-    );
-    head.position.y = 1.54;
-    head.castShadow = true;
-    this.avatarGroup.add(body, head);
+    const clothing = new THREE.MeshStandardMaterial({color:0x315a71,roughness:.85});
+    const trousers = new THREE.MeshStandardMaterial({color:0x293840,roughness:.88});
+    const skin = new THREE.MeshStandardMaterial({color:0xd4a282,roughness:.75});
+    const vest = new THREE.MeshStandardMaterial({color:0xd48236,roughness:.8});
+    const add = (parent: THREE.Group, geo: THREE.BufferGeometry, mat: THREE.Material) => {
+      const mesh = new THREE.Mesh(geo,mat); mesh.castShadow = true; parent.add(mesh);
+    };
+    add(this.avatarGroup,survivorClothing(),clothing);
+    add(this.avatarGroup,survivorHead(),skin);
+    add(this.avatarGroup,survivorVest(),vest);
+    for(const side of [-1,1]){
+      const arm = new THREE.Group(); arm.position.set(side*.28,1.32,0);
+      const leg = new THREE.Group(); leg.position.set(side*.13,.67,0);
+      add(arm,survivorArm(),clothing); add(leg,survivorLeg(),trousers);
+      this.avatarGroup.add(arm,leg); this.limbs.push(arm,leg);
+    }
     this.avatarGroup.visible = false;
     scene.add(this.avatarGroup);
   }
@@ -138,6 +143,15 @@ export class PlayerController {
     // Atualizar avatar em 3ª pessoa
     this.avatarGroup.position.copy(this.position);
     this.avatarGroup.rotation.y = this.yaw;
+    if (this.thirdPerson) {
+      const speed = Math.hypot(this.velocity.x,this.velocity.z);
+      this.gait += dt * (this.inWater ? 5 : 2.8 * speed);
+      const stride = Math.sin(this.gait) * Math.min(.65,speed*.14);
+      for(let i=0;i<this.limbs.length;i++){
+        const target = stride * (i===0||i===3 ? 1 : -1);
+        this.limbs[i].rotation.x = THREE.MathUtils.lerp(this.limbs[i].rotation.x,target,Math.min(1,dt*12));
+      }
+    }
   }
 
   applyToCamera(camera: THREE.PerspectiveCamera, bobTime: number, enableBob: boolean): void {

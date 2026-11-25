@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { sharkBody, sharkBelly, sharkTail, sharkEyes } from '../render/DetailGeometry';
 import type { EventBus } from '../core/EventBus';
 import type { RaftGrid } from '../raft/Grid';
 import type { RaftRenderer } from '../raft/RaftRenderer';
@@ -19,6 +20,7 @@ export class SharkBoss {
   maxHp = 100;
   resolved = false;
 
+  private readonly tailMesh: THREE.Mesh;
   private orbitAngle = 0;
   private attackCooldown = 28;
   private stateTimer = 0;
@@ -31,18 +33,12 @@ export class SharkBoss {
     const bodyMat = new THREE.MeshStandardMaterial({ color: 0x3b4d5e, roughness: 0.55 });
     const bellyMat = new THREE.MeshStandardMaterial({ color: 0xd9e4ec, roughness: 0.65 });
 
-    const body = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.65, 2.9), bodyMat);
-    body.position.y = -0.15;
-    const belly = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.25, 2.6), bellyMat);
-    belly.position.y = -0.45;
-    const fin = new THREE.Mesh(new THREE.ConeGeometry(0.28, 0.95, 4), bodyMat);
-    fin.position.set(0, 0.55, 0.1);
-    fin.rotation.x = -0.22;
-    const tail = new THREE.Mesh(new THREE.ConeGeometry(0.42, 0.9, 4), bodyMat);
-    tail.position.set(0, 0.15, 1.7);
-    tail.rotation.x = Math.PI / 2;
-
-    this.mesh.add(body, belly, fin, tail);
+    const body = new THREE.Mesh(sharkBody(), bodyMat);
+    const belly = new THREE.Mesh(sharkBelly(), bellyMat);
+    const eyes = new THREE.Mesh(sharkEyes(), new THREE.MeshStandardMaterial({color:0x101923, roughness:.32}));
+    this.tailMesh = new THREE.Mesh(sharkTail(), bodyMat);
+    this.tailMesh.position.set(0,-.12,1.45);
+    this.mesh.add(body, belly, eyes, this.tailMesh);
     scene.add(this.mesh);
 
     this.warningRing = new THREE.Mesh(
@@ -115,6 +111,7 @@ export class SharkBoss {
     onPlayerHit: (dmg: number) => void,
     onWarningSignal: () => void
   ): void {
+    this.tailMesh.rotation.y = Math.sin(timeSec * (this.isPhase2() ? 8 : 5)) * .34;
     const waveY = getWaveHeight(this.position.x, this.position.z, timeSec, stormFactor);
 
     if (this.state === 'REPELLED') {
