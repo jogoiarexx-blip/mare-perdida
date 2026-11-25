@@ -11,6 +11,7 @@ import { RECIPES, type RecipeDef, type StructureKind } from './data/recipes';
 import { Inventory } from './player/Inventory';
 import { SurvivalSystem, type Difficulty } from './player/Survival';
 import { PlayerController } from './player/Controller';
+import { HeldTools } from './player/HeldTools';
 import { HookController } from './player/HookAndTools';
 import { cellKey, RaftGrid } from './raft/Grid';
 import {isArchitecture,nearbyStair,adjacentUpper,UPPER_Y} from './raft/Architecture';
@@ -78,6 +79,7 @@ export class Game {
   private raftGrid = new RaftGrid(256);
   private raftRenderer = new RaftRenderer();
   private player!: PlayerController;
+  private heldTools!: HeldTools;
   private hook!: HookController;
   private shark!: SharkBoss;
   private inventory = new Inventory(20);
@@ -177,6 +179,7 @@ export class Game {
     this.raftRenderer.syncWithGrid(this.raftGrid);
 
     this.player = new PlayerController(this.scene);
+    this.heldTools = new HeldTools(this.scene);
     this.player.moveToRaftSafe(this.raftRenderer, this.raftGrid);
 
     this.hook = new HookController(this.scene);
@@ -648,6 +651,8 @@ export class Game {
     }
     this.ocean.update(this.player.position.x, this.player.position.z, this.clock.elapsedSeconds, this.weather.stormFactor);
     this.player.applyToCamera(this.camera, this.clock.elapsedSeconds, this.options.cameraBob);
+    const held=this.inventory.getSelectedSlot()?.itemId;
+    this.heldTools.update(held,this.player.thirdPerson,this.player.toolHand,this.camera,idle?0:safeDt,this.clock.elapsedSeconds,Math.hypot(this.player.velocity.x,this.player.velocity.z)>.4,!this.started||this.modals.isOpen()||this.rowing||Boolean(this.helmKey)||Boolean(this.buildRecipe)||this.binocular||this.survival.dead||(held==='gancho'&&this.hook.state.active));
     const fov=this.binocular&&this.inventory.getItemCount('binoculo')?Math.max(18,this.options.fov*.33):this.options.fov;
     if(this.camera.fov!==fov){this.camera.fov=fov;this.camera.updateProjectionMatrix();}
     const lamp=[...this.raftGrid.modules.values()].find(m=>m.kind==='farol_nav'&&m.active);
@@ -763,6 +768,7 @@ export class Game {
 
     const slot = this.inventory.getSelectedSlot();
     const itemId = slot?.itemId;
+    this.heldTools.trigger(itemId);
     if(itemId==='remo'){this.toggleRowing();return;}
     if(itemId==='binoculo'){this.binocular=!this.binocular;return;}
     if(itemId==='combustivel'){this.refuelMotor();return;}
@@ -1043,7 +1049,7 @@ export class Game {
       this.hud.pushToast('Mochila sem espaço. O recurso permanece na ilha.','warn');return true;
     }
     if(!this.chunks.harvest(node.id))return true;
-    if(node.kind==='palm')this.inventory.damageSlot(this.inventory.selectedHotbar,1);
+    if(node.kind==='palm'){this.heldTools.trigger('machado');this.inventory.damageSlot(this.inventory.selectedHotbar,1);}
     this.collectLoot(node.loot,'island');
     return true;
   }
