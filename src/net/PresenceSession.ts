@@ -1,3 +1,5 @@
+import type {EconomyAction,EconomyRequest,EconomyState,FloatView} from './EconomyProtocol';
+import type {Inventory} from '../player/Inventory';
 import * as THREE from 'three';
 import { PlayerController } from '../player/Controller';
 import { POSE_INTERVAL,POSE_TIMEOUT_MS,shortestAngle,type PlayerPose } from './PresenceProtocol';
@@ -14,6 +16,26 @@ export class PresenceSession {
   private receivedAt=-Infinity;
   private seq=0;
   private worldSeq=0;
+  private economyRequests:EconomyRequest[]=[];
+  private pendingEconomy:EconomyState|null=null;
+  private pendingCommand=-1;
+  private economyAck=-1;
+  private economyOk=false;
+  private economyTimer=1;
+  get economyBusy(){return this.pendingCommand>=0;}
+  requestEconomy(command:EconomyAction,revision:number){
+    if(this.host||this.economyBusy||!this.link.presenceReady)return false;
+    const seq=++this.worldSeq;
+    if(!this.link.sendWorld({v:1,type:'economyRequest',seq,revision,command}))return false;
+    this.pendingCommand=seq;return true;
+  }
+  takeEconomy(){const p=this.pendingEconomy;this.pendingEconomy=null;if(p&&p.ack>=this.pendingCommand)this.pendingCommand=-1;return p;}
+  takeRequests(){return this.economyRequests.splice(0,4);}
+  acknowledge(seq:number,ok:boolean){this.economyAck=seq;this.economyOk=ok;this.economyTimer=1;}
+  broadcastEconomy(dt:number,inventory:Inventory,floats:FloatView[]){
+    if(!this.host)return;this.economyTimer+=dt;if(this.economyTimer<.3)return;
+    if(this.link.sendWorld({v:1,type:'economyState',seq:++this.worldSeq,inventory:inventory.serialize(),floats,ack:this.economyAck,ok:this.economyOk}))this.economyTimer=0;
+  }
   private worldTimer=1;
   private fullTimer=4;
   private sentGrid='';
@@ -45,6 +67,8 @@ export class PresenceSession {
     this.marker=new THREE.Mesh(new THREE.OctahedronGeometry(.11),new THREE.MeshBasicMaterial({color:0x61e8ff}));
     this.marker.position.y=1.96;this.remote.avatarGroup.add(this.marker);
     link.onWorld(p=>{
+      if(p.type==='economyRequest'&&this.host&&this.economyRequests.length<16)this.economyRequests.push(p);
+      if(p.type==='economyState'&&!this.host)this.pendingEconomy=p;
       if(p.type==='raft'&&!this.host)this.pendingGrid=p;
       if(p.type==='motion'&&!this.host)this.pendingMotion=p;
       if(p.type==='anchor'&&this.host&&performance.now()-this.anchorAt>750){this.anchorAt=performance.now();this.anchorPending=true;}
