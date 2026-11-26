@@ -1,3 +1,4 @@
+import type {FloatView} from '../net/EconomyProtocol';
 import * as THREE from 'three';
 import { combine } from '../render/DetailGeometry';
 import { detailedAtDistance, wreckHull, wreckCabin, wreckRails } from './MaritimeModels';
@@ -285,6 +286,26 @@ export class SectorManager {
     }
   }
 
+  floatViews():FloatView[]{
+    return this.flotsam.map(f=>({id:f.id,kind:f.kind,x:Math.round(f.x*100)/100,z:Math.round(f.z*100)/100,rotY:Math.atan2(Math.sin(f.rotY),Math.cos(f.rotY))}));
+  }
+  /** Réplica visual do convidado; nunca gera loot local. */
+  applyFloatViews(views:FloatView[],time:number,storm:number):void{
+    const ids=new Set(views.map(f=>f.id));
+    for(const f of [...this.flotsam])if(!ids.has(f.id))this.removeFlotsam(f.id);
+    for(const v of views){
+      let f=this.flotsamById.get(v.id);
+      if(f&&f.kind!==v.kind){this.removeFlotsam(v.id);f=undefined;}
+      if(!f){
+        const geo=v.kind==='madeira'?this.woodGeo:v.kind==='plastico'?this.plasticGeo:v.kind==='folha'?this.leafGeo:v.kind==='caixote'?this.crateGeo:this.barrelGeo;
+        const mat=v.kind==='madeira'?this.woodMat:v.kind==='plastico'?this.plasticMat:v.kind==='folha'?this.leafMat:v.kind==='caixote'?this.crateMat:this.barrelMat;
+        const mesh=this.takeMesh(v.kind,geo,mat);if(v.kind==='plastico')mesh.rotation.z=Math.PI/2;
+        f={...v,mesh,loot:[]};this.group.add(mesh);this.flotsam.push(f);this.flotsamById.set(v.id,f);
+      }
+      f.x=v.x;f.z=v.z;f.rotY=v.rotY;
+      f.mesh.position.set(v.x,getWaveHeight(v.x,v.z,time,storm)-.03,v.z);f.mesh.rotation.y=v.rotY;
+    }
+  }
   removeFlotsam(id: string): FlotsamEntity | null {
     const removed=this.flotsamById.get(id);
     if(!removed)return null;
