@@ -24,6 +24,7 @@ import { DiveWorld } from './world/DiveWorld';
 import { DivePredators } from './ai/DivePredators';
 import { seabedHeight,oxygenCapacity } from './world/DiveLayout';
 import { ChunkManager } from './world/ChunkManager';
+import { GreenCampaign, anchoredNearGreenIsland, type GreenPointId } from './world/GreenCampaign';
 import { biomeLabel } from './world/ChunkLayout';
 import { Discovery,helmStep,paddleStep,motorStep,radarIsland,MOTOR_CAPACITY,FUEL_SECONDS,deckDistance,bearing,cardinal,headingDegrees,minimapSvg } from './world/Navigation';
 import { WeatherSystem,weatherAt } from './world/Weather';

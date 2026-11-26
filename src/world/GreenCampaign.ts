@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import {islandForChunk,islandHeight,type IslandSpec} from './ChunkLayout';
+import {islandForChunk,islandHeight} from './ChunkLayout';
 import {resourcesForIsland} from './IslandResources';
 import {combine} from '../render/DetailGeometry';
 export type GreenPointId='green_spring'|'green_bento'|'green_stock';
