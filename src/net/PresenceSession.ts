@@ -2,6 +2,10 @@ import * as THREE from 'three';
 import { PlayerController } from '../player/Controller';
 import { POSE_INTERVAL,POSE_TIMEOUT_MS,shortestAngle,type PlayerPose } from './PresenceProtocol';
 import type { PeerLink } from './PeerLink';
+import type {RaftMotion,RaftSnapshot} from './RaftProtocol';
+import type {RaftGrid} from '../raft/Grid';
+import type {RaftRenderer} from '../raft/RaftRenderer';
+import type {WorldClock} from '../core/Clock';
 
 /** Presença visual apenas. Os dados de rede nunca entram na física nem no save. */
 export class PresenceSession {
@@ -9,6 +13,30 @@ export class PresenceSession {
   private target:PlayerPose|null=null;
   private receivedAt=-Infinity;
   private seq=0;
+  private worldSeq=0;
+  private worldTimer=1;
+  private fullTimer=4;
+  private sentGrid='';
+  private pendingGrid:RaftSnapshot|null=null;
+  private pendingMotion:RaftMotion|null=null;
+  private anchorPending=false;
+  private anchorAt=-Infinity;
+  get host(){return this.link.role==='host';}
+  get remotePose(){return this.online?this.target:null;}
+  requestAnchor(){return !this.host&&this.link.sendWorld({v:1,type:'anchor',seq:++this.worldSeq});}
+  consumeAnchor(){const result=this.anchorPending;this.anchorPending=false;return result;}
+  takeGrid(){const p=this.pendingGrid;this.pendingGrid=null;return p;}
+  takeMotion(){const p=this.pendingMotion;this.pendingMotion=null;return p;}
+  broadcast(dt:number,grid:RaftGrid,raft:RaftRenderer,clock:WorldClock){
+    if(!this.host||!this.link.presenceReady)return;
+    this.worldTimer+=dt;this.fullTimer+=dt;
+    if(this.worldTimer<.2)return;this.worldTimer=0;
+    const serialized=grid.serialize();const signature=JSON.stringify(serialized);
+    if(signature!==this.sentGrid||this.fullTimer>=3){
+      if(this.link.sendWorld({v:1,type:'raft',seq:++this.worldSeq,grid:serialized})){this.sentGrid=signature;this.fullTimer=0;}
+    }
+    this.link.sendWorld({v:1,type:'motion',seq:++this.worldSeq,x:raft.x,z:raft.z,heading:Math.atan2(Math.sin(raft.heading),Math.cos(raft.heading)),elapsed:clock.elapsedSeconds,day:clock.dayCount,time:clock.timeOfDay,tick:clock.tick});
+  }
   private elapsed=POSE_INTERVAL;
   private readonly marker:THREE.Mesh;
   constructor(readonly link:PeerLink,scene:THREE.Scene){
@@ -16,6 +44,11 @@ export class PresenceSession {
     this.remote.avatarGroup.visible=false;
     this.marker=new THREE.Mesh(new THREE.OctahedronGeometry(.11),new THREE.MeshBasicMaterial({color:0x61e8ff}));
     this.marker.position.y=1.96;this.remote.avatarGroup.add(this.marker);
+    link.onWorld(p=>{
+      if(p.type==='raft'&&!this.host)this.pendingGrid=p;
+      if(p.type==='motion'&&!this.host)this.pendingMotion=p;
+      if(p.type==='anchor'&&this.host&&performance.now()-this.anchorAt>750){this.anchorAt=performance.now();this.anchorPending=true;}
+    });
     link.onPose(p=>{
       this.target=p;this.receivedAt=performance.now();
     });
@@ -23,7 +56,7 @@ export class PresenceSession {
   get online(){return this.link.presenceReady&&this.target!==null&&performance.now()-this.receivedAt<POSE_TIMEOUT_MS;}
   get status(){
     if(!this.link.presenceReady)return 'P2P · conexão interrompida';
-    return this.online?'P2P · 2/2 · '+(this.link.latency??'—')+' ms':'P2P · aguardando parceiro entrar';
+    return this.online?'P2P · '+(this.host?'Anfitrião':'Convidado')+' · 2/2 · '+(this.link.latency??'—')+' ms':'P2P · aguardando parceiro entrar';
   }
   update(dt:number,local:PlayerController,paused:boolean){
     this.elapsed+=Math.min(.1,Math.max(0,dt));
