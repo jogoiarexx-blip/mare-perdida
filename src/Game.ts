@@ -1335,7 +1335,9 @@ export class Game {
           this.modals.refreshIfOpen(this.buildPanelContext());
         } else {
           this.inventory.selectHotbar(idx);
+          this.modals.refreshIfOpen(this.buildPanelContext());
         }
+        this.updateHud();
       },
       onSwapSlots: (from, to) => {
         if (!Number.isInteger(from) || !Number.isInteger(to) || from < 0 || to < 0 ||
