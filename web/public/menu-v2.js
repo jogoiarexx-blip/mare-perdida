@@ -50,6 +50,7 @@
     book:'<path d="M12 5v15M3 5c4-1 6 0 9 2 3-2 5-3 9-2v13c-4-1-6 0-9 2-3-2-5-3-9-2z"/>',
     compass:'<circle cx="12" cy="12" r="9"/><path d="m15 9-2 5-4 1 2-5z"/>',
     hard:'<path d="M12 3 2 20h20zM12 9v5m0 3v.5"/>',
+    settings:'<path d="M4 6h16M4 12h16M4 18h16"/><circle cx="9" cy="6" r="2" fill="#16495d"/><circle cx="15" cy="12" r="2" fill="#16495d"/><circle cx="10" cy="18" r="2" fill="#16495d"/>',
     help:'<circle cx="12" cy="12" r="9"/><path d="M9 9a3 3 0 0 1 6 0c0 2-3 2-3 5m0 3v.5"/>'
   };
   function icon(name) {return '<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round">'+icons[name]+'</svg>';}
@@ -96,6 +97,7 @@
     choices.append(normal,story,hard);nav.append(fresh,choices);
     const load=button('folder','Carregar save','Importar arquivo .json');input.hidden=true;load.addEventListener('click',()=>{input.value='';input.click();});nav.append(load,input);
     styleButton(p2p,'peer','Multiplayer / P2P','Sala e teste para dois jogadores');nav.append(p2p);
+    const settings=backdrop.querySelector('#mm-options');if(settings){styleButton(settings,'settings','Opções','Áudio, gráficos e controles');nav.append(settings);}
     const help=button('help','Como jogar','Controles e dicas');
     const tips=document.createElement('div');tips.id='mare-help';tips.className='mare-difficulties';tips.hidden=true;tips.textContent='WASD: andar · Espaço: pular/nadar · Clique/F: usar ferramenta · E: interagir · B: construir · I: mochila · J: diário · V: câmera. No celular, use os controles na tela.';
     help.setAttribute('aria-expanded','false');help.setAttribute('aria-controls',tips.id);help.addEventListener('click',()=>{tips.hidden=!tips.hidden;help.setAttribute('aria-expanded',String(!tips.hidden));});nav.append(help,tips);

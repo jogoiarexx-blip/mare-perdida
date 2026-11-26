@@ -1,6 +1,7 @@
 import type {PeerLink} from '../net/PeerLink';
 import { ITEMS } from '../data/items';
 import { gameIcon } from './Icons';
+import {renderSettings} from './SettingsView';
 import { RECIPES, type RecipeDef, type StructureKind } from '../data/recipes';
 import type { Inventory } from '../player/Inventory';
 import type { QuestEngine } from '../quests/QuestEngine';
@@ -36,6 +37,12 @@ export class Modals {
   private readonly modalBackdrop: HTMLElement;
   private readonly menuBackdrop: HTMLElement;
   private currentTab: PanelTab | null = null;
+  private mainSettingsOpen=false;
+  closeMainSettings():boolean{
+    if(!this.mainSettingsOpen)return false;
+    this.mainSettingsOpen=false;this.modalBackdrop.classList.add('hidden');this.menuBackdrop.classList.remove('hidden');
+    this.menuBackdrop.querySelector<HTMLButtonElement>('#mm-options')?.focus();return true;
+  }
   private lastCtx: PanelContext | null = null;
 
   constructor(container: HTMLElement) {
@@ -53,6 +60,7 @@ export class Modals {
   }
 
   closeAll(): void {
+    this.mainSettingsOpen=false;
     this.currentTab = null;
     this.lastCtx = null;
     this.modalBackdrop.classList.add('hidden');
@@ -61,6 +69,8 @@ export class Modals {
 
   showMainMenu(params: {
     hasSave: boolean;
+    getOptions:()=>GameOptions;
+    onOptionsChanged:(options:GameOptions)=>void;
     onContinue: () => void;
     onNewWorld: (difficulty: 'historia' | 'normal' | 'dificil') => void;
     onImportJson: (raw: string) => void;
@@ -88,11 +98,19 @@ export class Modals {
           </label>
         </div>
         <button class="btn" id="mm-p2p">Sala P2P</button>
+        <button class="btn" id="mm-options">Opções</button>
         <div style="font-size:0.8em;color:var(--muted);margin-top:8px;">
           Controles: WASD andar · Espaço pular/nadar · Click/F usar ferramenta · E interagir · B construir · I mochila · J diário · V 1ª/3ª pessoa
         </div>
       </div>
     `;
+    this.menuBackdrop.querySelector('#mm-options')?.addEventListener('click',()=>{
+      this.mainSettingsOpen=true;this.menuBackdrop.classList.add('hidden');this.modalBackdrop.classList.remove('hidden');
+      this.modalBackdrop.innerHTML=`<div class="modal-card settings-card"><header class="settings-header"><div><small>MARÉ PERDIDA</small><h2>Opções</h2></div><button type="button" class="btn" id="mm-options-back">${gameIcon('close')} Voltar [Esc]</button></header><div id="main-settings-body"></div></div>`;
+      renderSettings(this.modalBackdrop.querySelector('#main-settings-body')!,params.getOptions(),params.onOptionsChanged);
+      this.modalBackdrop.querySelector('#mm-options-back')?.addEventListener('click',()=>this.closeMainSettings());
+      this.modalBackdrop.querySelector<HTMLButtonElement>('#mm-options-back')?.focus();
+    });
     const p2p = this.menuBackdrop.querySelector<HTMLButtonElement>('#mm-p2p');
     p2p?.addEventListener('click', async () => {
       p2p.disabled = true;
@@ -420,94 +438,11 @@ export class Modals {
     `;
   }
 
-  private renderOptionsTab(body: Element, ctx: PanelContext): void {
-    const o = ctx.options;
-    body.innerHTML = `
-      <div class="grid-2">
-        <div>
-          <h3 style="margin-top:0;">Acessibilidade & Vídeo</h3>
-          <label style="display:block;margin-bottom:8px;">Qualidade gráfica:
-            <select id="opt-quality" class="btn">
-              <option value="alto" ${o.quality==='alto'?'selected':''}>Alta — resolução adaptativa</option>
-              <option value="baixo" ${o.quality==='baixo'?'selected':''}>Baixa — desempenho</option>
-            </select>
-          </label>
-          <label style="display:block;margin-bottom:8px;">Escala da HUD (${o.hudScale.toFixed(2)}x)
-            <input type="range" id="opt-scale" min="0.8" max="1.35" step="0.05" value="${o.hudScale}" style="width:100%;" />
-          </label>
-          <label style="display:block;margin-bottom:8px;">FOV (${o.fov}°)
-            <input type="range" id="opt-fov" min="60" max="95" step="1" value="${o.fov}" style="width:100%;" />
-          </label>
-          <label style="display:block;margin-bottom:8px;">Volume Geral (${Math.round(o.masterVolume * 100)}%)
-            <input type="range" id="opt-vol" min="0" max="1" step="0.05" value="${o.masterVolume}" style="width:100%;" />
-          </label>
-          <label style="display:block;margin-bottom:6px;"><input type="checkbox" id="opt-contrast" ${o.highContrast ? 'checked' : ''} /> Alto contraste</label>
-          <label style="display:block;margin-bottom:6px;"><input type="checkbox" id="opt-bob" ${o.cameraBob ? 'checked' : ''} /> Balanço de câmera</label>
-          <label style="display:block;margin-bottom:8px;"><input type="checkbox" id="opt-autocollect" ${o.autoCollectNear ? 'checked' : ''} /> Auto-coleta próxima ao nadar</label>
-          <label style="display:block;margin-bottom:8px;">Controles Touch:
-            <select id="opt-touch" class="btn">
-              <option value="auto" ${o.touchControls === 'auto' ? 'selected' : ''}>Automático</option>
-              <option value="on" ${o.touchControls === 'on' ? 'selected' : ''}>Sempre ativo</option>
-              <option value="off" ${o.touchControls === 'off' ? 'selected' : ''}>Desligado</option>
-            </select>
-          </label>
-        </div>
-        <div>
-          <h3 style="margin-top:0;">Saves & Backup</h3>
-          <p style="font-size:0.84em;color:var(--muted);">Autosave a cada 90s e ao concluir missões em dois slots rotativos no IndexedDB.</p>
-          <div style="display:flex;flex-direction:column;gap:8px;">
-            <button class="btn primary" id="opt-save-now">Salvar Agora</button>
-            <button class="btn" id="opt-export">Exportar Save (.json)</button>
-            <label class="btn" style="text-align:center;">
-              Importar Save (.json)
-              <input type="file" id="opt-import" accept=".json,application/json" style="display:none;" />
-            </label>
-          </div>
-        </div>
-      </div>
-    `;
-
-    const commit = () => {
-      ctx.onOptionsChanged({ ...o });
-    };
-
-    body.querySelector('#opt-quality')?.addEventListener('change', (e) => {
-      o.quality=(e.target as HTMLSelectElement).value==='baixo'?'baixo':'alto';commit();
-    });
-    body.querySelector('#opt-scale')?.addEventListener('input', (e) => {
-      o.hudScale = Number((e.target as HTMLInputElement).value);
-      commit();
-    });
-    body.querySelector('#opt-fov')?.addEventListener('input', (e) => {
-      o.fov = Number((e.target as HTMLInputElement).value);
-      commit();
-    });
-    body.querySelector('#opt-vol')?.addEventListener('input', (e) => {
-      o.masterVolume = Number((e.target as HTMLInputElement).value);
-      commit();
-    });
-    body.querySelector('#opt-contrast')?.addEventListener('change', (e) => {
-      o.highContrast = (e.target as HTMLInputElement).checked;
-      commit();
-    });
-    body.querySelector('#opt-bob')?.addEventListener('change', (e) => {
-      o.cameraBob = (e.target as HTMLInputElement).checked;
-      commit();
-    });
-    body.querySelector('#opt-autocollect')?.addEventListener('change', (e) => {
-      o.autoCollectNear = (e.target as HTMLInputElement).checked;
-      commit();
-    });
-    body.querySelector('#opt-touch')?.addEventListener('change', (e) => {
-      o.touchControls = (e.target as HTMLSelectElement).value as GameOptions['touchControls'];
-      commit();
-    });
-    body.querySelector('#opt-save-now')?.addEventListener('click', ctx.onManualSave);
-    body.querySelector('#opt-export')?.addEventListener('click', ctx.onExportSave);
-    body.querySelector('#opt-import')?.addEventListener('change', async (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (!file) return;
-      ctx.onImportSave(await file.text());
-    });
+  private renderOptionsTab(body:Element,ctx:PanelContext):void{
+    body.innerHTML=`<div id="pause-settings"></div><section class="settings-save"><h3>Saves & Backup</h3><p>Autosave a cada 90s e ao concluir missões.</p><div class="settings-footer"><button class="btn primary" id="opt-save-now">Salvar Agora</button><button class="btn" id="opt-export">Exportar Save (.json)</button><label class="btn">Importar Save (.json)<input type="file" id="opt-import" accept=".json,application/json" hidden></label></div></section>`;
+    renderSettings(body.querySelector('#pause-settings')!,ctx.options,ctx.onOptionsChanged);
+    body.querySelector('#opt-save-now')?.addEventListener('click',ctx.onManualSave);
+    body.querySelector('#opt-export')?.addEventListener('click',ctx.onExportSave);
+    body.querySelector('#opt-import')?.addEventListener('change',async(e)=>{const file=(e.target as HTMLInputElement).files?.[0];if(file)ctx.onImportSave(await file.text());});
   }
 }

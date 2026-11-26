@@ -282,7 +282,7 @@ export class Game {
     });
 
     window.addEventListener('keydown', (e) => {
-      if (!this.started) return;
+      if (!this.started){if(e.code==='Escape'&&!e.repeat)this.modals.closeMainSettings();return;}
       if (e.code === 'Escape') {
         if (e.repeat) return;
         if (this.modals.isOpen()) {
@@ -396,6 +396,8 @@ export class Game {
     const saved = await this.store.loadLatestValid();
     this.modals.showMainMenu({
       hasSave: Boolean(saved),
+      getOptions:()=>this.options,
+      onOptionsChanged:opts=>this.applyOptions(opts),
       onContinue: () => {
         if (saved) {
           this.restoreFromSave(saved.data);
@@ -1554,7 +1556,10 @@ export class Game {
     document.body.classList.toggle('high-contrast', opts.highContrast);
     this.camera.fov = opts.fov;
     this.camera.updateProjectionMatrix();
+    this.renderer.shadowMap.enabled=opts.shadows;this.renderer.shadowMap.needsUpdate=true;
     this.sfx.setVolume(opts.masterVolume);
+    this.sfx.setMix(opts.effectsVolume,opts.ambienceVolume);
+    if(this.started&&opts.masterVolume>0)this.sfx.startAmbience();
 
     const showTouch =
       opts.touchControls === 'on' || (opts.touchControls === 'auto' && this.isMobileDevice());
