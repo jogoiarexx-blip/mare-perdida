@@ -1,3 +1,4 @@
+import type {PeerLink} from '../net/PeerLink';
 import { ITEMS } from '../data/items';
 import { gameIcon } from './Icons';
 import { RECIPES, type RecipeDef, type StructureKind } from '../data/recipes';
@@ -62,6 +63,7 @@ export class Modals {
     onContinue: () => void;
     onNewWorld: (difficulty: 'historia' | 'normal' | 'dificil') => void;
     onImportJson: (raw: string) => void;
+    onPeerPlay?: (link:PeerLink)=>void;
   }): void {
     this.menuBackdrop.classList.remove('hidden');
     this.menuBackdrop.innerHTML = `
@@ -97,8 +99,8 @@ export class Modals {
         const { openPeerDiagnostic } = await import('./PeerDiagnostic');
         openPeerDiagnostic(() => {
           p2p.disabled = false;
-          p2p.focus();
-        });
+          if(!this.menuBackdrop.classList.contains('hidden'))p2p.focus();
+        },params.onPeerPlay);
       } catch {
         p2p.disabled = false;
         p2p.textContent = 'Falha ao abrir. Tentar conexão P2P novamente';
@@ -133,14 +135,14 @@ export class Modals {
     onSave: () => void;
     onExport: () => void;
     onOpenOptions: () => void;
+    onLeavePeer?:()=>void;
   }): void {
     this.menuBackdrop.classList.remove('hidden');
     this.menuBackdrop.innerHTML = `
       <div class="modal-card" style="max-width:400px;text-align:center;">
         <h2 style="margin:0;">Jogo Pausado</h2>
         <button class="btn primary" id="pm-resume">Retomar</button>
-        <button class="btn" id="pm-save">Salvar Agora (Slot A/B)</button>
-        <button class="btn" id="pm-export">Exportar Save (.json)</button>
+        ${params.onLeavePeer?'<button class="btn" id="pm-peer-leave">Encerrar teste P2P e voltar ao menu</button>':'<button class="btn" id="pm-save">Salvar Agora (Slot A/B)</button><button class="btn" id="pm-export">Exportar Save (.json)</button>'}
         <button class="btn" id="pm-opts">Opções e Acessibilidade</button>
       </div>
     `;
@@ -148,6 +150,7 @@ export class Modals {
       this.closeAll();
       params.onResume();
     });
+    this.menuBackdrop.querySelector('#pm-peer-leave')?.addEventListener('click',()=>params.onLeavePeer?.());
     this.menuBackdrop.querySelector('#pm-save')?.addEventListener('click', params.onSave);
     this.menuBackdrop.querySelector('#pm-export')?.addEventListener('click', params.onExport);
     this.menuBackdrop.querySelector('#pm-opts')?.addEventListener('click', () => {
