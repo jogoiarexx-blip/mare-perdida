@@ -9,6 +9,7 @@ import type { GameOptions } from '../save/Store';
 export type PanelTab = 'mochila' | 'construcao' | 'diario' | 'opcoes';
 
 export interface PanelContext {
+  peerBuildOnly?:boolean;
   onClose: () => void;
   inventory: Inventory;
   quests: QuestEngine;
@@ -191,6 +192,7 @@ export class Modals {
       </div>
     `;
 
+    if(ctx.peerBuildOnly)for(const el of this.modalBackdrop.querySelectorAll('[data-t]:not([data-t="construcao"])'))el.remove();
     this.modalBackdrop.querySelectorAll('[data-t]').forEach((el) => {
       el.addEventListener('click', () => {
         this.currentTab = el.getAttribute('data-t') as PanelTab;
