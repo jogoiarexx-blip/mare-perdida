@@ -95,7 +95,7 @@
     styleButton(normal,'compass','Normal','Sobrevivência equilibrada');styleButton(story,'book','História','Priorize a narrativa');styleButton(hard,'hard','Difícil','Um desafio maior');
     choices.append(normal,story,hard);nav.append(fresh,choices);
     const load=button('folder','Carregar save','Importar arquivo .json');input.hidden=true;load.addEventListener('click',()=>{input.value='';input.click();});nav.append(load,input);
-    styleButton(p2p,'peer','Multiplayer / P2P','Testar conexão entre jogadores');nav.append(p2p);
+    styleButton(p2p,'peer','Multiplayer / P2P','Sala e teste para dois jogadores');nav.append(p2p);
     const help=button('help','Como jogar','Controles e dicas');
     const tips=document.createElement('div');tips.id='mare-help';tips.className='mare-difficulties';tips.hidden=true;tips.textContent='WASD: andar · Espaço: pular/nadar · Clique/F: usar ferramenta · E: interagir · B: construir · I: mochila · J: diário · V: câmera. No celular, use os controles na tela.';
     help.setAttribute('aria-expanded','false');help.setAttribute('aria-controls',tips.id);help.addEventListener('click',()=>{tips.hidden=!tips.hidden;help.setAttribute('aria-expanded',String(!tips.hidden));});nav.append(help,tips);
