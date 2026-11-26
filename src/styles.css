@@ -455,3 +455,11 @@ body,
 .game-icon.icon-interface{filter:none;}
 .recipe-title{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
 .high-contrast .game-icon.icon-illustrated{filter:grayscale(1) brightness(1.45);}
+
+/* Sala P2P V2 — responsiva, com chat e monitor legível. */
+.p2p-dialog{max-height:90dvh;width:min(640px,calc(100% - 24px));background:#0b2332;border:1px solid #538798;border-top:3px solid #79cddd;border-radius:6px 16px 6px 6px;padding:16px;box-sizing:border-box;}
+.p2p-dialog h2,.p2p-dialog h3{margin:4px 0;color:#b9e9f2;}
+.p2p-dialog p{font-size:.86rem;line-height:1.4;margin:5px 0;}
+.p2p-dialog textarea,.p2p-dialog input{box-sizing:border-box;padding:8px;border:1px solid #507a89;border-radius:4px;background:#102f40;color:#e8f4fa;user-select:text;}
+.p2p-dialog .p2p-actions .btn{min-height:40px;flex:1 1 auto;}
+@media(max-width:480px){.p2p-dialog{padding:10px;}.p2p-dialog .btn{font-size:12px;}}
