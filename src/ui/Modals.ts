@@ -192,7 +192,7 @@ export class Modals {
       </div>
     `;
 
-    if(ctx.peerBuildOnly)for(const el of this.modalBackdrop.querySelectorAll('[data-t]:not([data-t="construcao"])'))el.remove();
+    if(ctx.peerBuildOnly)for(const el of this.modalBackdrop.querySelectorAll('[data-t]:not([data-t="construcao"]):not([data-t="mochila"])'))el.remove();
     this.modalBackdrop.querySelectorAll('[data-t]').forEach((el) => {
       el.addEventListener('click', () => {
         this.currentTab = el.getAttribute('data-t') as PanelTab;
