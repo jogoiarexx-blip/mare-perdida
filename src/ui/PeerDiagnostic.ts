@@ -85,7 +85,7 @@ export function openPeerDiagnostic(onBack: () => void): void {
         const code = kind === 'offer' ? await link.offer() : await link.answer(input.value);
         if (current !== operation) return;
         output.value = code;
-        report(kind === 'offer' ? 'Envie o convite e aguarde a resposta.' : 'Envie a resposta ao navegador que criou o convite.');
+        if(chat.disabled)report(kind === 'offer' ? 'Envie o convite e aguarde a resposta.' : 'Envie a resposta ao navegador que criou o convite.');
       }
     } catch (error) {
       if (current !== operation) return;
