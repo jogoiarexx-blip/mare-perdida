@@ -536,7 +536,9 @@ export class Game {
     const peer=this.peerSession;
     if(peer&&!peer.host){
       const snapshot=peer.takeGrid();if(snapshot){this.raftGrid.restore(snapshot.grid);this.raftRenderer.syncWithGrid(this.raftGrid);}
+      const wasBusy=peer.economyBusy;
       const economy=peer.takeEconomy();if(economy){
+        if(wasBusy&&!peer.economyBusy){this.hud.pushToast(economy.ok?'Ação confirmada pelo anfitrião.':'Ação recusada: recurso, distância ou estoque inválido.',economy.ok?'success':'warn');}
         const changed=!this.peerInventoryReady||economy.inventory.revision!==this.inventory.revision;
         if(changed){const selected=this.inventory.selectedHotbar;this.inventory=Inventory.deserialize(economy.inventory);this.inventory.selectHotbar(selected);this.modals.refreshIfOpen(this.buildPanelContext());}
         this.peerInventoryReady=true;
