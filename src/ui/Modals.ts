@@ -84,7 +84,7 @@ export class Modals {
             <input type="file" id="mm-import" accept=".json,application/json" style="display:none;" />
           </label>
         </div>
-        <button class="btn" id="mm-p2p">Testar conexão P2P</button>
+        <button class="btn" id="mm-p2p">Sala P2P</button>
         <div style="font-size:0.8em;color:var(--muted);margin-top:8px;">
           Controles: WASD andar · Espaço pular/nadar · Click/F usar ferramenta · E interagir · B construir · I mochila · J diário · V 1ª/3ª pessoa
         </div>
