@@ -14,6 +14,8 @@ import { PlayerController } from './player/Controller';
 import { HeldTools } from './player/HeldTools';
 import {PresenceSession} from './net/PresenceSession';
 import {COOP_FOUNDATIONS,COOP_MODULES} from './net/RaftProtocol';
+import {buildShared,collectShared,craftShared} from './net/EconomyAuthority';
+import type {EconomyAction} from './net/EconomyProtocol';
 import type {PeerLink} from './net/PeerLink';
 import { HookController } from './player/HookAndTools';
 import { cellKey, moduleKey, RaftGrid } from './raft/Grid';
@@ -104,6 +106,8 @@ export class Game {
   private started = false;
   private peerSession:PresenceSession|null=null;
   private peerSynced=false;
+  private peerInventoryReady=false;
+  private guestInventory:Inventory|null=null;
 
   // Flags persistentes de mundo
   private wreckLooted = false;
@@ -296,7 +300,7 @@ export class Game {
 
       if (this.modals.isOpen()) return;
       this.keys.add(e.code);
-      if(this.peerSession&&!['KeyV','F3','KeyM','KeyE','KeyH',...(this.peerSession.host?['KeyB','KeyF','KeyR','KeyX','KeyO','KeyT','KeyG']:[])].includes(e.code))return;
+      if(this.peerSession&&!['KeyV','F3','KeyM','KeyE','KeyH','KeyB','KeyF','KeyR','KeyI',...(this.peerSession.host?['KeyX','KeyO','KeyT','KeyG']:[])].includes(e.code)&&!/^Digit[1-8]$/.test(e.code))return;
 
       if(e.code==='F3'&&!e.repeat){e.preventDefault();this.hud.togglePerformance();}
       else if(e.code==='KeyO'&&!e.repeat){this.toggleRowing();}
@@ -431,12 +435,14 @@ export class Game {
       // Materiais exclusivamente de teste. A âncora ainda exige fabricação.
       for(const [id,count] of [['madeira',80],['plastico',40],['sucata',20],['corda',20],['tecido',20],['folha',20],['minerio_marinho',10]] as const)this.inventory.addItem(id,count);
     }
+    this.peerInventoryReady=link.role==='host';
+    this.guestInventory=link.role==='host'?this.inventory.clone():null;
     this.player.position.set(link.role==='host'?.15:1.05,.65,.45);
     this.player.velocity.set(0,0,0);
     this.shark.mesh.visible=false;this.shark.warningRing.visible=false;
     this.saveStatus='Teste P2P · sem gravação';
     this.startPlay();
-    this.hud.pushToast('P2P V4: anfitrião constrói e navega; convidado acompanha e controla a âncora. Sem gravação.','info');
+    this.hud.pushToast('P2P V5: ambos coletam e constroem. Mochilas individuais; sessão sem gravação.','info');
   }
 
   private startNewWorld(difficulty: Difficulty,sharedSeed?:number): void {
@@ -526,7 +532,15 @@ export class Game {
     if(m06?.status==='ACTIVE'&&!m06.progress.m06_anchor&&anchoredNearGreenIsland(this.seed,this.raftRenderer.x,this.raftRenderer.z,this.raftGrid.isAnchorDropped()))this.bus.emit('landmarkReached',{landmarkId:'green_anchor'});
     this.greenCampaign.update(this.seed,this.player.position.x,this.player.position.z,this.greenTarget());
     const peer=this.peerSession;
-    if(peer&&!peer.host){const snapshot=peer.takeGrid();if(snapshot){this.raftGrid.restore(snapshot.grid);this.raftRenderer.syncWithGrid(this.raftGrid);}}
+    if(peer&&!peer.host){
+      const snapshot=peer.takeGrid();if(snapshot){this.raftGrid.restore(snapshot.grid);this.raftRenderer.syncWithGrid(this.raftGrid);}
+      const economy=peer.takeEconomy();if(economy){
+        const changed=!this.peerInventoryReady||economy.inventory.revision!==this.inventory.revision;
+        if(changed){const selected=this.inventory.selectedHotbar;this.inventory=Inventory.deserialize(economy.inventory);this.inventory.selectHotbar(selected);this.modals.refreshIfOpen(this.buildPanelContext());}
+        this.peerInventoryReady=true;
+        this.sector.applyFloatViews(economy.floats,this.clock.elapsedSeconds,this.weather.stormFactor);
+      }
+    }
     this.clock.advance(dt);
     this.weather.setWeather(weatherAt(this.seed,this.clock.elapsedSeconds));
     this.weather.update(this.clock.timeOfDay, this.raftRenderer.x, this.raftRenderer.z, dt);
@@ -624,6 +638,22 @@ export class Game {
             }
           }
         }
+        this.sector.update(dt,this.raftRenderer.x,this.raftRenderer.z,this.clock.elapsedSeconds,this.weather.stormFactor,this.player.position.x,this.player.position.z);
+        const guest=this.guestInventory;
+        if(guest){for(const request of peer.takeRequests()){
+          const remote=peer.remotePose,c=request.command;
+          let ok=false;
+          if(remote&&request.revision===guest.revision){
+            if(c.action==='collect'&&remote.y>-1.5&&remote.y<3)ok=collectShared(this.sector,guest,c.id,remote.x,remote.z);
+            else if(c.action==='build'&&!remote.wet){const local=this.raftRenderer.worldToLocalXZ(remote.x,remote.z,this.localQuery);if(Math.abs(remote.y-this.raftRenderer.root.position.y)<4)ok=buildShared(this.raftGrid,guest,c,local.x,local.y);if(ok)this.raftRenderer.syncWithGrid(this.raftGrid);}
+            else if(c.action==='craft')ok=craftShared(guest,c.recipe);
+            else if(c.action==='move')ok=guest.moveSlot(c.from,c.to);
+            else if(c.action==='split')ok=guest.splitSlot(c.index);
+            else if(c.action==='sort'){guest.organizeBackpack();ok=true;}
+          }
+          peer.acknowledge(request.seq,ok);
+        }
+        peer.broadcastEconomy(dt,guest,this.sector.floatViews());}
         peer.broadcast(dt,this.raftGrid,this.raftRenderer,this.clock);
       }
       return;
@@ -828,7 +858,6 @@ export class Game {
   }
 
   private handlePrimaryUse(): void {
-    if(this.peerSession&&!this.peerSession.host)return;
     if(this.rowing){this.toggleRowing();return;}
     if(this.helmKey)return;
     if (this.buildRecipe) {
@@ -951,7 +980,7 @@ export class Game {
     return true;
   }
   private handleInteract(): void {
-    if(this.peerSession){if(this.rowing||this.helmKey){this.rowing=false;this.helmKey=null;this.resetMenuInput();return;}if(this.tryBoardRaft())return;if(this.useStair())return;if(this.peerSession.host){const door=this.getNearbyDoor();if(door){door.active=!door.active;this.raftRenderer.syncDynamicModule(door);}}return;}
+    if(this.peerSession){if(this.rowing||this.helmKey){this.rowing=false;this.helmKey=null;this.resetMenuInput();return;}if(this.tryBoardRaft())return;if(this.useStair())return;if(this.peerSession.host){const door=this.getNearbyDoor();if(door){door.active=!door.active;this.raftRenderer.syncDynamicModule(door);return;}}this.collectPeerNearby();return;}
     if(this.helmKey||this.rowing){this.helmKey=null;this.rowing=false;this.resetMenuInput();this.hud.pushToast('Navegação liberada.','info');return;}
     if(this.tryBoardRaft())return;
     const door=this.getNearbyDoor();if(door){door.active=!door.active;this.raftRenderer.syncDynamicModule(door);this.hud.pushToast(door.active?'Porta aberta.':'Porta fechada.','info');return;}
@@ -1113,6 +1142,23 @@ export class Game {
     }
   }
 
+  private requestPeerEconomy(command:EconomyAction):void{
+    if(!this.peerSession||!this.peerInventoryReady||!this.peerSession.requestEconomy(command,this.inventory.revision)){
+      this.hud.pushToast('Aguarde a sincronização da mochila.','info');return;
+    }
+    this.hud.pushToast('Solicitação enviada ao anfitrião.','info');
+  }
+  private collectPeerNearby():void{
+    const peer=this.peerSession,p=this.player.position;
+    if(!peer||p.y< -1.5||p.y>3)return;
+    let best:FlotsamEntity|undefined,d=3.2;
+    for(const f of this.sector.flotsam){const dist=Math.hypot(f.x-p.x,f.z-p.z);if(dist<d){d=dist;best=f;}}
+    if(!best){this.hud.pushToast('Nenhum detrito ao alcance.','info');return;}
+    if(!peer.host){this.requestPeerEconomy({action:'collect',id:best.id});return;}
+    if(collectShared(this.sector,this.inventory,best.id,p.x,p.z)){this.sfx.playPickup();this.hud.pushToast('Recurso recolhido.','success');this.updateHud();}
+    else this.hud.pushToast('Mochila cheia ou recurso indisponível.','warn');
+  }
+
   private tryPickupNearbyFlotsam(radius: number): boolean {
     let bestId: string | null = null;
     let bestDist = radius*radius;
@@ -1169,7 +1215,7 @@ export class Game {
     const recipe = this.buildRecipe;
     const target = this.ghostTarget;
     if (!recipe || !target || !recipe.placesStructure) return;
-    if(this.peerSession&&(!this.peerSession.host||Math.abs(target.gx)>64||Math.abs(target.gz)>64)){this.hud.pushToast('Posição indisponível no teste P2P.','warn');return;}
+    if(this.peerSession&&(Math.abs(target.gx)>64||Math.abs(target.gz)>64)){this.hud.pushToast('Posição indisponível no teste P2P.','warn');return;}
     if(this.peerSession&&this.raftGrid.modules.size>=COOP_MODULES&&!['fundacao','borda_reforcada','fundacao_metal','piso_claro','piso_escuro'].includes(recipe.placesStructure)){this.hud.pushToast('Limite de equipamentos no teste P2P.','warn');return;}
     const checked = evaluateBuild(this.raftGrid,recipe.placesStructure,target.gx,target.gz,this.inventory.hasItems(recipe.ingredients),this.buildRotation);
     if (!checked.valid) {
@@ -1177,6 +1223,7 @@ export class Game {
       return;
     }
 
+    if(this.peerSession&&!this.peerSession.host){this.requestPeerEconomy({action:'build',recipe:recipe.id,gx:target.gx,gz:target.gz,rotation:this.buildRotation});return;}
     const kind = recipe.placesStructure;
     let placedOk = false;
 
@@ -1198,8 +1245,8 @@ export class Game {
     if (placedOk) {
       this.inventory.consumeItems(recipe.ingredients);
       this.raftRenderer.syncWithGrid(this.raftGrid);
-      this.quests.syncFoundationCount(this.raftGrid.foundations.size);
-      this.bus.emit('structurePlaced', { kind, gx: target.gx, gz: target.gz });
+      if(!this.peerSession){this.quests.syncFoundationCount(this.raftGrid.foundations.size);
+      this.bus.emit('structurePlaced', { kind, gx: target.gx, gz: target.gz });}
       this.sfx.playBuild();
       if (kind === 'borda_reforcada') this.hud.pushToast('Borda reforçada instalada: 220/220 HP.', 'success');
       else if(kind==='ancora')this.hud.pushToast('Âncora instalada! Pressione H ou toque em Âncora para lançá-la.', 'success');
@@ -1358,6 +1405,7 @@ export class Game {
       hasPurifier: this.raftGrid.hasModuleKind('purificador'),
       hasGrill: this.raftGrid.hasModuleKind('churrasqueira'),
       onCraft: (recipe) => {
+        if(this.peerSession){if(recipe.bench!=='manual'){this.hud.pushToast('Equipamentos de produção ainda não sincronizados.','info');return;}if(!this.peerSession.host){this.requestPeerEconomy({action:'craft',recipe:recipe.id});return;}if(craftShared(this.inventory,recipe.id)){this.modals.refreshIfOpen(this.buildPanelContext());this.updateHud();}else this.hud.pushToast('Recursos ou espaço insuficientes.','warn');return;}
         const res = this.inventory.craft(recipe);
         if (!res.ok) {
           this.hud.pushToast(res.reason ?? 'Não foi possível fabricar.', 'warn');
@@ -1379,6 +1427,7 @@ export class Game {
         this.hud.pushToast(`Modo construção: ${kind}. Aponte para a jangada e clique para montar.`, 'info');
       },
       onUseInventorySlot: (idx) => {
+        if(this.peerSession){this.hud.pushToast('Consumo será ativado com sobrevivência cooperativa.','info');return;}
         const slot = this.inventory.slots[idx];
         if (!slot) return;
         if (this.survival.consumeItem(slot.itemId)) {
@@ -1389,6 +1438,7 @@ export class Game {
       },
       onMoveToHotbar: (idx) => {
         if (idx >= 8) {
+          if(this.peerSession&&!this.peerSession.host){this.requestPeerEconomy({action:'move',from:idx,to:this.inventory.selectedHotbar});return;}
           this.inventory.swapSlots(idx, this.inventory.selectedHotbar);
           this.modals.refreshIfOpen(this.buildPanelContext());
         } else {
@@ -1398,6 +1448,7 @@ export class Game {
         this.updateHud();
       },
       onSwapSlots: (from, to) => {
+        if(this.peerSession&&!this.peerSession.host){this.requestPeerEconomy({action:'move',from,to});return;}
         if (!Number.isInteger(from) || !Number.isInteger(to) || from < 0 || to < 0 ||
             from >= this.inventory.capacity || to >= this.inventory.capacity || from === to || !this.inventory.slots[from]) return;
         this.inventory.moveSlot(from, to);
@@ -1405,11 +1456,13 @@ export class Game {
         this.updateHud();
       },
       onOrganizeInventory: () => {
+        if(this.peerSession&&!this.peerSession.host){this.requestPeerEconomy({action:'sort'});return;}
         this.inventory.organizeBackpack();
         this.modals.refreshIfOpen(this.buildPanelContext());
         this.updateHud();
       },
       onSplitSlot: (idx) => {
+        if(this.peerSession&&!this.peerSession.host){this.requestPeerEconomy({action:'split',index:idx});return;}
         if (this.inventory.splitSlot(idx)) {
           this.modals.refreshIfOpen(this.buildPanelContext());
         }
@@ -1451,7 +1504,7 @@ export class Game {
   }
 
   private openPanel(tab: PanelTab): void {
-    if(this.peerSession&&(!this.peerSession.host||tab!=='construcao')){this.hud.pushToast('No teste V4, somente o anfitrião pode abrir a construção.','info');return;}
+    if(this.peerSession&&(!['mochila','construcao'].includes(tab)||!this.peerInventoryReady)){this.hud.pushToast('Aguarde a sincronização da mochila. Diário e saves ainda indisponíveis.','info');return;}
     this.helmKey=null;this.rowing=false;this.binocular=false;
     if (!this.started) return;
     this.resetMenuInput();
@@ -1632,7 +1685,7 @@ export class Game {
   }
 
   private computePromptText(): string {
-    if(this.peerSession&&!this.buildRecipe)return this.canBoardRaft()?'[E/Ação] Subir na jangada':this.peerSession.host?'P2P · B: construir · O: remar · H: âncora':'P2P · H: solicitar âncora · Esc: menu';
+    if(this.peerSession&&!this.buildRecipe)return this.canBoardRaft()?'[E/Ação] Subir na jangada':this.peerSession.host?'P2P · E: coletar · I: mochila · B: construir · O: remar':'P2P · E: coletar · I: mochila · B: construir · H: âncora';
     if(this.rowing||this.helmKey)return this.raftGrid.isAnchorDropped()?'Âncora baixada — [H] recolher · [E/Ação] sair':(this.rowing?'Remo':this.raftGrid.modules.get(this.helmKey??'')?.kind==='motor'?'Motor':'Leme')+' · W/S avançar/recuar · A/D virar · [E/Ação] sair';
     if(this.canBoardRaft())return '[E/Ação] Subir na jangada';
     const door=this.getNearbyDoor();if(door)return door.active?'[E/Ação] Fechar porta':'[E/Ação] Abrir porta';
