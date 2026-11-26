@@ -143,7 +143,7 @@ export class Modals {
         <h2 style="margin:0;">Jogo Pausado</h2>
         <button class="btn primary" id="pm-resume">Retomar</button>
         ${params.onLeavePeer?'<button class="btn" id="pm-peer-leave">Encerrar teste P2P e voltar ao menu</button>':'<button class="btn" id="pm-save">Salvar Agora (Slot A/B)</button><button class="btn" id="pm-export">Exportar Save (.json)</button>'}
-        <button class="btn" id="pm-opts">Opções e Acessibilidade</button>
+        ${params.onLeavePeer?'':'<button class="btn" id="pm-opts">Opções e Acessibilidade</button>'}
       </div>
     `;
     this.menuBackdrop.querySelector('#pm-resume')?.addEventListener('click', () => {
