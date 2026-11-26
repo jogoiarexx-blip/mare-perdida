@@ -164,10 +164,58 @@ export class Inventory {
     this.revision += 1;
   }
 
+  /** Move, empilha até o limite ou troca. Nunca mistura ferramentas com durabilidade. */
+  moveSlot(from:number,to:number):boolean {
+    if(!Number.isInteger(from)||!Number.isInteger(to)||from<0||to<0||from>=this.capacity||to>=this.capacity||from===to)return false;
+    const src=this.slots[from],dst=this.slots[to];
+    if(!src)return false;
+    const max=ITEMS[src.itemId]?.stackMax??1;
+    if(dst&&src.itemId===dst.itemId&&src.durability===undefined&&dst.durability===undefined&&max>1){
+      const count=Math.min(src.count,Math.max(0,max-dst.count));
+      if(!count)return false;
+      dst.count+=count;src.count-=count;
+      if(src.count===0)this.slots[from]=null;
+      this.revision++;return true;
+    }
+    this.swapSlots(from,to);return true;
+  }
+
+  /** Consolida e ordena apenas a mochila, sem tocar nos oito atalhos. */
+  organizeBackpack():void {
+    const start=Math.min(Inventory.HOTBAR_SIZE,this.capacity);
+    const result:InventorySlot[]=[];
+    for(const slot of this.slots.slice(start)){
+      if(!slot)continue;
+      let left=slot.count;
+      const max=ITEMS[slot.itemId]?.stackMax??1;
+      if(slot.durability===undefined&&max>1){
+        for(const dst of result){
+          if(dst.itemId!==slot.itemId||dst.durability!==undefined)continue;
+          const take=Math.min(left,Math.max(0,max-dst.count));dst.count+=take;left-=take;
+          if(!left)break;
+        }
+      }
+      if(left>0)result.push({...slot,count:left});
+    }
+    const rank:Record<string,number>={ferramenta:0,consumivel:1,recurso:2,estrutura:3,missao:4};
+    result.sort((a,b)=>(rank[ITEMS[a.itemId]?.category]??5)-(rank[ITEMS[b.itemId]?.category]??5)||(ITEMS[a.itemId]?.name??a.itemId).localeCompare(ITEMS[b.itemId]?.name??b.itemId,'pt-BR'));
+    for(let i=start;i<this.capacity;i++)this.slots[i]=result[i-start]??null;
+    this.revision++;
+  }
+
+  consumeSlot(index:number):boolean {
+    if(!Number.isInteger(index)||index<0||index>=this.capacity)return false;
+    const slot=this.slots[index];if(!slot||slot.count<1)return false;
+    if(--slot.count===0)this.slots[index]=null;
+    this.revision++;return true;
+  }
+
   splitSlot(index: number): boolean {
     const slot = this.slots[index];
     if (!slot || slot.count < 2) return false;
-    const emptyIdx = this.slots.findIndex((s) => s === null);
+    if(slot.durability!==undefined)return false;
+    const backpackEmpty=this.slots.findIndex((s,i)=>i>=Inventory.HOTBAR_SIZE&&s===null);
+    const emptyIdx=backpackEmpty>=0?backpackEmpty:this.slots.findIndex(s=>s===null);
     if (emptyIdx === -1) return false;
     const half = Math.floor(slot.count / 2);
     slot.count -= half;
