@@ -1,4 +1,6 @@
+import {readPose,sessionSeed,type PlayerPose} from './PresenceProtocol';
 const LABEL = 'mare-perdida/cp06-v1';
+const PRESENCE_LABEL='mare-perdida/presence-v1';
 const MAX_SIGNAL_LENGTH = 16_384;
 const MAX_CHAT_LENGTH=240;
 export interface PeerHealth {state:'waiting'|'connected'|'interrupted'|'closed'|'failed';rtt:number|null;jitter:number|null;sent:number;received:number;timeouts:number;}
@@ -21,6 +23,22 @@ export function readChat(raw:string):string|null {
 export class PeerLink {
   private readonly peer: RTCPeerConnection;
   private channel?: RTCDataChannel;
+  private presence?:RTCDataChannel;
+  private poseHandler?:(pose:PlayerPose)=>void;
+  private lastSequence=-1;
+  private seedValue:number|null=null;
+  private roleValue:'host'|'guest'='host';
+  get role(){return this.roleValue;}
+  get sharedSeed(){return this.seedValue;}
+  get presenceReady(){return !this.closed&&this.seedValue!==null&&this.health.state==='connected'&&this.presence?.readyState==='open';}
+  get connectionState(){return this.health.state;}
+  get latency(){return this.health.rtt;}
+  onPose(handler:(pose:PlayerPose)=>void){this.poseHandler=handler;}
+  sendPose(pose:PlayerPose):boolean{
+    if(!this.presenceReady||!this.presence||this.presence.bufferedAmount>2048)return false;
+    const raw=JSON.stringify(pose);if(raw.length>256)return false;
+    try{this.presence.send(raw);return true;}catch{return false;}
+  }
   private pingTimer?: ReturnType<typeof setTimeout>;
   private heartbeat?: ReturnType<typeof setInterval>;
   private recovery?: ReturnType<typeof setTimeout>;
@@ -33,7 +51,7 @@ export class PeerLink {
       private readonly onHealth:(health:PeerHealth)=>void=()=>{},
       private readonly onChat:(message:string)=>void=()=>{}) {
     this.peer = new RTCPeerConnection({ iceServers: [{ urls: ['stun:stun.l.google.com:19302','stun:stun1.l.google.com:19302'] }] });
-    this.peer.ondatachannel = ({ channel }) => this.bindChannel(channel);
+    this.peer.ondatachannel = ({ channel }) => channel.label===PRESENCE_LABEL?this.bindPresence(channel):this.bindChannel(channel);
     this.peer.onconnectionstatechange = () => {
       if(this.closed)return;
       if (this.peer.connectionState === 'failed') {
@@ -58,11 +76,16 @@ export class PeerLink {
     this.ping(false);
   }
   async offer(): Promise<string> {
+    this.roleValue='host';
     this.bindChannel(this.peer.createDataChannel(LABEL));
-    return this.localSignal(await this.peer.createOffer());
+    this.bindPresence(this.peer.createDataChannel(PRESENCE_LABEL,{ordered:false,maxRetransmits:0}));
+    const code=await this.localSignal(await this.peer.createOffer());
+    this.seedValue=sessionSeed(readSignal(code,'offer').sdp!);this.notify();return code;
   }
   async answer(raw: string): Promise<string> {
-    await this.peer.setRemoteDescription(readSignal(raw, 'offer'));
+    this.roleValue='guest';const offer=readSignal(raw,'offer');
+    this.seedValue=sessionSeed(offer.sdp!);
+    await this.peer.setRemoteDescription(offer);
     return this.localSignal(await this.peer.createAnswer());
   }
   async accept(raw: string): Promise<void> {
@@ -90,7 +113,7 @@ export class PeerLink {
     this.closed=true;
     clearTimeout(this.pingTimer);clearInterval(this.heartbeat);clearTimeout(this.recovery);
     this.pingTimer=undefined;this.heartbeat=undefined;this.recovery=undefined;
-    this.gatherCancel?.();this.channel?.close();this.peer.close();this.setState(state);
+    this.gatherCancel?.();this.poseHandler=undefined;this.presence?.close();this.channel?.close();this.peer.close();this.setState(state);
   }
   private async localSignal(description: RTCSessionDescriptionInit): Promise<string> {
     await this.peer.setLocalDescription(description);
@@ -108,6 +131,17 @@ export class PeerLink {
     const code=JSON.stringify({...signal,version:1});
     if(code.length>MAX_SIGNAL_LENGTH)throw new Error('Convite grande demais. Tente outra rede.');
     return code;
+  }
+  private bindPresence(channel:RTCDataChannel):void{
+    if(this.closed||this.presence||channel.label!==PRESENCE_LABEL){channel.close();return;}
+    this.presence=channel;
+    channel.onopen=()=>this.notify();channel.onclose=()=>this.notify();
+    channel.onmessage=({data})=>{
+      if(this.closed)return;
+      const pose=readPose(data);if(!pose||pose.seq<=this.lastSequence)return;
+      this.lastSequence=pose.seq;this.poseHandler?.(pose);
+    };
+    if(channel.readyState==='open')this.notify();
   }
   private bindChannel(channel: RTCDataChannel): void {
     if (channel.label !== LABEL || this.channel || this.closed) {channel.close();return;}
