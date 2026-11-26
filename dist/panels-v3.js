@@ -92,6 +92,22 @@ css.textContent=`
 #ui-root #panel-body .mare-inventory-hint{font-size:.82em;line-height:1.45;color:#d0e8ed;margin-bottom:9px;}
 #ui-root #panel-body .mare-inventory-buttons{display:flex;flex-wrap:wrap;gap:6px;}
 #ui-root #panel-body .mare-inventory-buttons .btn{flex:1 1 auto;min-height:40px;padding:8px;font-size:.82em;}
+
+/* Mochila V2: barra rápida separada, nomes, filtros e durabilidade. */
+#ui-root #panel-body .mare-inv-filter{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0;}
+#ui-root #panel-body .mare-inv-filter input,#ui-root #panel-body .mare-inv-filter select{min-width:0;flex:1;padding:8px;background:#0b2433;color:#e3f1f4;border:1px solid #507c8a;border-radius:5px;font-size:12px;}
+#ui-root #panel-body .inv-grid.mare-inv-layout{display:block;}
+#ui-root #panel-body .mare-inv-layout h4{font-size:11px;letter-spacing:.08em;text-transform:uppercase;margin:12px 0 6px;color:#a5d9e4;}
+#ui-root #panel-body .mare-slot-section{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;}
+#ui-root #panel-body .mare-inv-tile{width:100%;height:84px!important;min-width:0;position:relative;padding:5px 3px 13px;display:flex;align-items:center;justify-content:center;flex-direction:column;}
+#ui-root #panel-body .mare-inv-tile .slot-art{margin:0 0 8px;}
+#ui-root #panel-body .mare-item-name{position:absolute;bottom:4px;left:3px;right:3px;text-align:center;font-size:10px;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#dbedf2;}
+#ui-root #panel-body .mare-item-condition{position:absolute;bottom:17px;left:10%;right:10%;height:3px;background:#101d24;border-radius:4px;overflow:hidden;}
+#ui-root #panel-body .mare-item-condition i{display:block;height:100%;background:#8be0ad;}
+#ui-root #panel-body .mare-equipped{outline:2px solid #d6b56e;outline-offset:-3px;}
+#ui-root #panel-body .mare-slot-muted:not(.mare-slot-picked){opacity:.34;}
+#ui-root #panel-body .mare-item-detail{color:#b2d5dc;font-size:12px;line-height:1.45;margin-bottom:10px;}
+@media(max-width:420px){#ui-root #panel-body .mare-inv-tile{height:72px!important;}#ui-root #panel-body .mare-item-name{font-size:9px;}#ui-root #panel-body .mare-slot-section{gap:4px;}}
 `;
 document.head.append(css);
 const state={mochila:{q:'',filter:'all'},construcao:{q:'',filter:'all'},diario:{q:'',filter:'all'}};
