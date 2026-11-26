@@ -5,6 +5,13 @@ export class SoundFX {
   private ctx: AudioContext | null = null;
   private masterGain: GainNode | null = null;
   volume = 0.55;
+  private effectsVolume=1;
+  private ambienceVolume=1;
+  setMix(effects:number,ambience:number):void{
+    this.effectsVolume=Math.max(0,Math.min(1,effects));
+    this.ambienceVolume=Math.max(0,Math.min(1,ambience));
+    this.ambienceState='';
+  }
   private ambience:AudioBufferSourceNode|null=null;
   private ambienceGain:GainNode|null=null;
   private ambienceFilter:BiquadFilterNode|null=null;
@@ -58,11 +65,12 @@ export class SoundFX {
     const state=idle?'idle':underwater?'dive':storm>.16?'rain':'sea';
     if(state===this.ambienceState)return;
     this.ambienceState=state;const now=this.ctx.currentTime;
-    this.ambienceGain.gain.setTargetAtTime(state==='idle'?0:state==='rain'?.19:state==='dive'?.09:.13,now,.25);
+    this.ambienceGain.gain.setTargetAtTime((state==='idle'?0:state==='rain'?.19:state==='dive'?.09:.13)*this.ambienceVolume,now,.25);
     this.ambienceFilter.frequency.setTargetAtTime(state==='dive'?150:state==='rain'?1500:650,now,.3);
   }
 
   playTone(freq: number, duration = 0.12, type: OscillatorType = 'sine', gainLevel = 0.16): void {
+    if(this.effectsVolume<=0.001)return;
     const ctx = this.ensureContext();
     if (!ctx || !this.masterGain) return;
     const now = ctx.currentTime;
@@ -70,7 +78,7 @@ export class SoundFX {
     const gain = ctx.createGain();
     osc.type = type;
     osc.frequency.setValueAtTime(freq, now);
-    gain.gain.setValueAtTime(gainLevel, now);
+    gain.gain.setValueAtTime(Math.max(.001,gainLevel*this.effectsVolume), now);
     gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
     osc.connect(gain);
     gain.connect(this.masterGain);

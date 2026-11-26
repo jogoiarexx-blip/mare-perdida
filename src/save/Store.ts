@@ -60,6 +60,9 @@ export interface GameOptions {
   highContrast: boolean;
   quality: 'alto' | 'baixo';
   masterVolume: number;
+  effectsVolume: number;
+  ambienceVolume: number;
+  shadows: boolean;
   autoCollectNear: boolean;
   touchControls: 'auto' | 'on' | 'off';
 }
@@ -72,6 +75,9 @@ export const DEFAULT_OPTIONS: GameOptions = {
   highContrast: false,
   quality: 'alto',
   masterVolume: 0.55,
+  effectsVolume: 1,
+  ambienceVolume: 1,
+  shadows: true,
   autoCollectNear: false,
   touchControls: 'auto',
 };
