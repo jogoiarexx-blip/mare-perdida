@@ -27,6 +27,8 @@ npm run build    # verifica tipos (tsc) e gera dist/ com base relativa './'
 
 No mobile ou quando ativado em *Opções*, o joystick virtual e os botões de ação aparecem automaticamente.
 
+**Âncora:** novos mundos começam à deriva, sem âncora instalada. Colete 2 sucatas e fabrique 1 corda, abra o menu B e posicione a âncora sobre uma fundação. Use H ou o botão Âncora para lançar/recolher. Os mundos salvos mantêm as estruturas existentes.
+
 ## Testar conexão P2P
 
 No menu inicial, abra **Testar conexão P2P** em dois navegadores. No primeiro, gere um convite e envie o código à outra pessoa. No segundo, cole o convite, gere uma resposta e devolva o código. No primeiro, cole e aplique a resposta. Use **Medir latência** após conectar. Para repetir depois de desconectar, gere um novo convite.
