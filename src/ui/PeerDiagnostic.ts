@@ -1,13 +1,13 @@
 import { PeerLink, type PeerHealth } from '../net/PeerLink';
 
-export function openPeerDiagnostic(onBack: () => void): void {
+export function openPeerDiagnostic(onBack: () => void,onPlay?:(link:PeerLink)=>void): void {
   const dialog = document.createElement('dialog');
   dialog.className = 'modal-card p2p-dialog';
   dialog.setAttribute('aria-labelledby', 'p2p-title');
   dialog.innerHTML = `
     <h2 id="p2p-title">Sala P2P — Maré Perdida</h2>
     <p>Gere um convite e envie a alguém de confiança. No outro navegador, cole o convite e gere uma resposta. Cole a resposta no primeiro navegador para conectar.</p>
-    <p>Conexão direta para dois jogadores. Compartilhe os códigos somente com pessoas de confiança. Nesta versão, chat e diagnóstico funcionam na sala; o mundo ainda não é compartilhado.</p>
+    <p>Conexão direta para dois jogadores. Compartilhe os códigos somente com pessoas de confiança. Entre no teste de movimento nos dois navegadores. A jangada de teste permanece fixa, sem coleta, construção ou salvamento.</p>
     <label for="p2p-input">Código recebido</label>
     <textarea id="p2p-input" rows="2" maxlength="16384" spellcheck="false"></textarea>
     <div class="p2p-actions">
@@ -20,7 +20,7 @@ export function openPeerDiagnostic(onBack: () => void): void {
     <div class="p2p-actions">
       <button class="btn" id="p2p-copy">Copiar código</button><button class="btn" id="p2p-paste">Colar código</button><button class="btn" id="p2p-ping" disabled>Medir latência</button>
       <button class="btn" id="p2p-disconnect">Desconectar</button>
-      <button class="btn" id="p2p-back">Voltar ao menu</button>
+      <button class="btn primary" id="p2p-play" disabled>Entrar no teste 2 jogadores</button><button class="btn" id="p2p-back">Voltar ao menu</button>
     </div>
     <p id="p2p-status" role="status">Aguardando convite.</p>
     <div id="p2p-health" style="padding:10px;border:1px solid #427383;border-radius:6px;font-size:.85em;line-height:1.6" aria-live="polite">Desconectado</div>
@@ -46,11 +46,13 @@ export function openPeerDiagnostic(onBack: () => void): void {
     const names={waiting:'Aguardando',connected:'Conectado',interrupted:'Reconectando',closed:'Desconectado',failed:'Falhou'};
     health.textContent=names[h.state]+' · RTT: '+(h.rtt===null?'—':h.rtt+' ms')+' · Variação: '+(h.jitter===null?'—':h.jitter+' ms')+' · Testes respondidos: '+h.received+'/'+h.sent+' · Sem resposta: '+h.timeouts;
     chat.disabled=button('send').disabled=button('ping').disabled=h.state!=='connected';
+    button('play').disabled=!onPlay||!link?.presenceReady;
   };
   const report = (message: string) => { status.textContent = message; };
   let link: PeerLink | undefined;
   let operation = 0;
   let generation=0;
+  let transferred=false;
 
   function disconnect(): void {
     operation += 1;
@@ -113,9 +115,13 @@ export function openPeerDiagnostic(onBack: () => void): void {
   button('accept').onclick = () => void negotiate('accept');
   button('ping').onclick = () => link ? link.ping() : report('Conecte os dois navegadores antes de medir.');
   button('disconnect').onclick = disconnect;
+  button('play').onclick=()=>{
+    if(!link?.presenceReady||!onPlay)return;
+    transferred=true;onPlay(link);dialog.close();
+  };
   button('back').onclick = () => dialog.close();
   dialog.addEventListener('close', () => {
-    disconnect();
+    if(!transferred)disconnect();
     dialog.remove();
     onBack();
   });
