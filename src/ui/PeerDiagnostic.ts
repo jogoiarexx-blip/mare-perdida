@@ -7,7 +7,7 @@ export function openPeerDiagnostic(onBack: () => void,onPlay?:(link:PeerLink)=>v
   dialog.innerHTML = `
     <h2 id="p2p-title">Sala P2P — Maré Perdida</h2>
     <p>Gere um convite e envie a alguém de confiança. No outro navegador, cole o convite e gere uma resposta. Cole a resposta no primeiro navegador para conectar.</p>
-    <p>Conexão direta para dois jogadores. Compartilhe os códigos somente com pessoas de confiança. Entre no teste de movimento nos dois navegadores. O anfitrião constrói e navega; o convidado acompanha a jangada e pode solicitar a âncora. Sem coleta ou salvamento.</p>
+    <p>Conexão direta para dois jogadores. Compartilhe os códigos somente com pessoas de confiança. Entre no teste de movimento nos dois navegadores. Ambos coletam e constroem com mochilas individuais; o anfitrião controla a navegação. Sem salvamento cooperativo.</p>
     <label for="p2p-input">Código recebido</label>
     <textarea id="p2p-input" rows="2" maxlength="16384" spellcheck="false"></textarea>
     <div class="p2p-actions">
