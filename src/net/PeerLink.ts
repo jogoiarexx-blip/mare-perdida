@@ -1,3 +1,4 @@
+import {readWorld,WORLD_LIMIT,type WorldPacket} from './RaftProtocol';
 import {readPose,sessionSeed,type PlayerPose} from './PresenceProtocol';
 const LABEL = 'mare-perdida/cp06-v1';
 const PRESENCE_LABEL='mare-perdida/presence-v1';
@@ -26,6 +27,13 @@ export class PeerLink {
   private presence?:RTCDataChannel;
   private poseHandler?:(pose:PlayerPose)=>void;
   private lastSequence=-1;
+  private worldHandler?:(packet:WorldPacket)=>void;
+  private worldSeq=-1;
+  onWorld(handler:(packet:WorldPacket)=>void){this.worldHandler=handler;}
+  sendWorld(packet:WorldPacket):boolean{
+    if(!this.presenceReady)return false;
+    const raw=JSON.stringify(packet);return raw.length<=WORLD_LIMIT&&this.send('world:'+raw);
+  }
   private seedValue:number|null=null;
   private roleValue:'host'|'guest'='host';
   get role(){return this.roleValue;}
@@ -113,7 +121,7 @@ export class PeerLink {
     this.closed=true;
     clearTimeout(this.pingTimer);clearInterval(this.heartbeat);clearTimeout(this.recovery);
     this.pingTimer=undefined;this.heartbeat=undefined;this.recovery=undefined;
-    this.gatherCancel?.();this.poseHandler=undefined;this.presence?.close();this.channel?.close();this.peer.close();this.setState(state);
+    this.gatherCancel?.();this.poseHandler=undefined;this.worldHandler=undefined;this.presence?.close();this.channel?.close();this.peer.close();this.setState(state);
   }
   private async localSignal(description: RTCSessionDescriptionInit): Promise<string> {
     await this.peer.setLocalDescription(description);
@@ -149,7 +157,14 @@ export class PeerLink {
     channel.onopen=()=>this.connected();
     channel.onclose=()=>{if(this.closed)return;this.close();this.report('Conexão encerrada. Gere um novo convite.');};
     channel.onmessage=({data})=>{
-      if(this.closed||typeof data!=='string'||data.length>MAX_CHAT_LENGTH+5)return;
+      if(this.closed||typeof data!=='string')return;
+      if(data.startsWith('world:')){
+        if(data.length>WORLD_LIMIT+6)return;
+        const p=readWorld(data.slice(6));
+        if(!p||p.seq<=this.worldSeq||(this.role==='host'?p.type!=='anchor':p.type==='anchor'))return;
+        this.worldSeq=p.seq;this.worldHandler?.(p);return;
+      }
+      if(data.length>MAX_CHAT_LENGTH+5)return;
       const ping=/^ping:(\d{1,10})$/.exec(data);
       if(ping){this.send('pong:'+ping[1]);return;}
       if(data==='pong:'+this.sequence&&this.pingTimer){
