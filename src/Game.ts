@@ -1324,7 +1324,7 @@ export class Game {
         const slot = this.inventory.slots[idx];
         if (!slot) return;
         if (this.survival.consumeItem(slot.itemId)) {
-          this.inventory.consumeItems([{ itemId: slot.itemId, count: 1 }]);
+          this.inventory.consumeSlot(idx);
           this.sfx.playPickup();
           this.modals.refreshIfOpen(this.buildPanelContext());
         }
@@ -1340,7 +1340,12 @@ export class Game {
       onSwapSlots: (from, to) => {
         if (!Number.isInteger(from) || !Number.isInteger(to) || from < 0 || to < 0 ||
             from >= this.inventory.capacity || to >= this.inventory.capacity || from === to || !this.inventory.slots[from]) return;
-        this.inventory.swapSlots(from, to);
+        this.inventory.moveSlot(from, to);
+        this.modals.refreshIfOpen(this.buildPanelContext());
+        this.updateHud();
+      },
+      onOrganizeInventory: () => {
+        this.inventory.organizeBackpack();
         this.modals.refreshIfOpen(this.buildPanelContext());
         this.updateHud();
       },
