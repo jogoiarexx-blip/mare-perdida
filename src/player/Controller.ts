@@ -178,22 +178,24 @@ export class PlayerController {
     // Atualizar avatar em 3ª pessoa
     this.avatarGroup.position.copy(this.position);
     this.avatarGroup.rotation.y = this.yaw;
-    if (this.thirdPerson) {
-      const speed = Math.hypot(this.velocity.x,this.velocity.z);
-      this.gait = (this.gait + dt * (this.inWater ? 5 : 2.8 * speed))%(Math.PI*2);
+    if(this.thirdPerson)this.animateAvatar(dt,Math.hypot(this.velocity.x,this.velocity.z),this.inWater,this.grounded);
+  }
+
+  /** Avatar remoto usa a mesma animação, mas não participa das colisões ou da simulação. */
+  animateAvatar(dt:number,speed:number,wet:boolean,grounded:boolean):void {
+      this.gait = (this.gait + dt * (wet ? 5 : 2.8 * speed))%(Math.PI*2);
       const stride = Math.sin(this.gait) * Math.min(.75,speed*.15);
       const blend=Math.min(1,dt*10);
       for(let i=0;i<this.limbs.length;i++){
         const arm=i%2===0;
         const phase=(i<2?0:Math.PI);
-        const target=this.inWater
+        const target=wet
           ? (arm?-.9+Math.sin(this.gait+phase)*.72:-.10+Math.sin(this.gait*1.5+phase)*.37)
-          : !this.grounded?(arm?-.32:.24):stride*(i===0||i===3?1:-1);
+          : !grounded?(arm?-.32:.24):stride*(i===0||i===3?1:-1);
         this.limbs[i].rotation.x=THREE.MathUtils.lerp(this.limbs[i].rotation.x,target,blend);
-        this.limbs[i].rotation.z=THREE.MathUtils.lerp(this.limbs[i].rotation.z,this.inWater&&arm?(i===0?-.24:.24):0,blend);
+        this.limbs[i].rotation.z=THREE.MathUtils.lerp(this.limbs[i].rotation.z,wet&&arm?(i===0?-.24:.24):0,blend);
       }
-      this.avatarGroup.rotation.x=THREE.MathUtils.lerp(this.avatarGroup.rotation.x,this.inWater?-.52:0,blend);
-    }
+      this.avatarGroup.rotation.x=THREE.MathUtils.lerp(this.avatarGroup.rotation.x,wet?-.52:0,blend);
   }
 
   applyToCamera(camera: THREE.PerspectiveCamera, bobTime: number, enableBob: boolean): void {
