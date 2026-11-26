@@ -23,7 +23,7 @@ css.textContent=`
 #ui-root #panel-body [data-slot]:nth-child(-n+8){border-bottom:3px solid #4d9eb5;}
 #ui-root #panel-body .slot-key{top:4px;left:5px;font-size:9px;color:#b1d2da;}
 #ui-root #panel-body .slot-count{font-size:11px;bottom:4px;right:4px;background:#081c28;padding:2px 4px;border-radius:3px;}
-#ui-root #panel-body .game-icon.icon-item{width:32px;height:32px;}
+#ui-root #panel-body .game-icon.icon-item{width:36px;height:36px;max-width:100%;}
 #ui-root #panel-body .recipe-row{background:#12303e;border:1px solid #709ba741;border-left:3px solid #527d8d;border-radius:3px 10px 3px 3px;padding:12px;gap:10px;margin:0 0 8px;align-items:center;min-width:0;overflow-wrap:anywhere;}
 #ui-root #panel-body .recipe-row > div{min-width:0;line-height:1.5;}
 #ui-root #panel-body .recipe-row strong{color:#e2f4f6;font-size:1.02em;}

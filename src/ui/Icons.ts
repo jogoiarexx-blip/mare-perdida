@@ -1,3 +1,4 @@
+import { ITEM_ART } from './ItemArt';
 // Ícones originais vetoriais, sem fontes ou bibliotecas externas.
 const GLYPHS: Record<string, readonly [string,string]> = {
   "machado": ["#c6b49a", "<path d=\"m4 21 10-14 3 2-10 14ZM11 5q4-4 10-2l1 6-5 5-5-5Z\"/>"],
@@ -267,6 +268,8 @@ export function gameIcon(id:string, size:'item'|'inline'|'action'='inline'):stri
   const safe=hasIcon(id)?id:'empty'; const key=safe+':'+size;
   const cached=cache.get(key); if(cached) return cached;
   const [color,body]=GLYPHS[safe];
-  const svg='<svg class="game-icon icon-'+size+'" viewBox="0 0 24 24" aria-hidden="true" focusable="false" style="color:'+color+'" fill="currentColor" fill-opacity=".17" stroke="currentColor" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round">'+body+'</svg>';
+  const art=ITEM_ART[safe];
+  const illustrated=Boolean(art);
+  const svg='<svg class="game-icon icon-'+size+(illustrated?' icon-illustrated':' icon-interface')+'" viewBox="0 0 24 24" aria-hidden="true" focusable="false" style="color:'+color+'" fill="currentColor" fill-opacity="'+(illustrated?'1':'.36')+'" stroke="currentColor" stroke-width="'+(illustrated?'.65':'1.7')+'" stroke-linecap="round" stroke-linejoin="round">'+(art??body)+'</svg>';
   cache.set(key,svg); return svg;
 }

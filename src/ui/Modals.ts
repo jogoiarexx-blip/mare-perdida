@@ -239,7 +239,7 @@ export class Modals {
         return `
           <div class="recipe-row">
             <div>
-              <div><strong>${r.name}</strong>${benchHint}</div>
+              <div class="recipe-title">${gameIcon(r.outputItemId??'empty','item')} <strong>${r.name}</strong>${benchHint}</div>
               <div style="font-size:0.8em;color:var(--muted);">${ingText}</div>
             </div>
             <button class="btn ${canCraft ? 'primary' : ''}" data-craft="${r.id}" ${canCraft ? '' : 'disabled'}>Fabricar</button>

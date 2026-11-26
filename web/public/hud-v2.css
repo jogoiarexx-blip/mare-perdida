@@ -172,3 +172,6 @@
   #hud-toasts {bottom:145px;max-width:180px;font-size:.74em;}
 }
 @media(prefers-reduced-motion:reduce){#hud-vitals .vital-fill{transition:none;}}
+
+#hud-hotbar .game-icon.icon-illustrated{width:clamp(29px,2.9vw,40px);height:clamp(29px,2.9vw,40px);}
+@media(max-width:600px){#hud-hotbar .game-icon.icon-illustrated{width:26px;height:26px;}}
