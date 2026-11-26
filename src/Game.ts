@@ -294,7 +294,7 @@ export class Game {
 
       if (this.modals.isOpen()) return;
       this.keys.add(e.code);
-      if(this.peerSession&&!['KeyV','F3','KeyM'].includes(e.code))return;
+      if(this.peerSession&&!['KeyV','F3','KeyM','KeyE'].includes(e.code))return;
 
       if(e.code==='F3'&&!e.repeat){e.preventDefault();this.hud.togglePerformance();}
       else if(e.code==='KeyO'&&!e.repeat){this.toggleRowing();}
@@ -1591,12 +1591,12 @@ export class Game {
       promptText: prompt,
       buildModeLabel: this.buildRecipe ? this.buildRecipe.name : null,
       saveStatus: this.saveStatus,
-      sharkWarning:sharkWarning??this.predators.warning(this.player.position)??this.fauna.warning(this.player.position),
+      sharkWarning:this.peerSession?null:sharkWarning??this.predators.warning(this.player.position)??this.fauna.warning(this.player.position),
     });
   }
 
   private computePromptText(): string {
-    if(this.peerSession)return 'Teste P2P · E/Ação: subir na jangada · Esc: sair';
+    if(this.peerSession)return this.canBoardRaft()?'[E/Ação] Subir na jangada':'Teste P2P · movimente-se com seu parceiro · Esc: menu';
     if(this.rowing||this.helmKey)return this.raftGrid.isAnchorDropped()?'Âncora baixada — [H] recolher · [E/Ação] sair':(this.rowing?'Remo':this.raftGrid.modules.get(this.helmKey??'')?.kind==='motor'?'Motor':'Leme')+' · W/S avançar/recuar · A/D virar · [E/Ação] sair';
     if(this.canBoardRaft())return '[E/Ação] Subir na jangada';
     const door=this.getNearbyDoor();if(door)return door.active?'[E/Ação] Fechar porta':'[E/Ação] Abrir porta';
