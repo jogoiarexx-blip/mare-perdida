@@ -1,3 +1,4 @@
+import {readEconomy,type EconomyRequest,type EconomyState} from './EconomyProtocol';
 import {RECIPES} from '../data/recipes';
 import {cellKey,moduleKey,type SerializedRaftGrid,type FoundationCell,type PlacedModule} from '../raft/Grid';
 export const WORLD_LIMIT=60000;
@@ -6,7 +7,7 @@ export const COOP_MODULES=128;
 export type RaftMotion={v:1;type:'motion';seq:number;x:number;z:number;heading:number;elapsed:number;day:number;time:number;tick:number};
 export type RaftSnapshot={v:1;type:'raft';seq:number;grid:SerializedRaftGrid};
 export type AnchorRequest={v:1;type:'anchor';seq:number};
-export type WorldPacket=RaftMotion|RaftSnapshot|AnchorRequest;
+export type WorldPacket=RaftMotion|RaftSnapshot|AnchorRequest|EconomyRequest|EconomyState;
 const kinds=new Set(RECIPES.filter(r=>r.placesStructure).map(r=>r.placesStructure));
 const integer=(n:unknown,min:number,max:number):n is number=>typeof n==='number'&&Number.isInteger(n)&&n>=min&&n<=max;
 const finite=(n:unknown,min:number,max:number):n is number=>typeof n==='number'&&Number.isFinite(n)&&n>=min&&n<=max;
@@ -14,6 +15,7 @@ export function readWorld(raw:string):WorldPacket|null{
   if(raw.length>WORLD_LIMIT)return null;
   try{
     const p=JSON.parse(raw);if(!p||p.v!==1||!integer(p.seq,0,Number.MAX_SAFE_INTEGER))return null;
+    if(p.type==='economyRequest'||p.type==='economyState')return readEconomy(p);
     if(p.type==='anchor')return {v:1,type:'anchor',seq:p.seq};
     if(p.type==='motion'){
       if(!finite(p.x,-1e6,1e6)||!finite(p.z,-1e6,1e6)||!finite(p.heading,-Math.PI*2,Math.PI*2)||!finite(p.elapsed,0,1e8)||!integer(p.day,1,1e6)||!finite(p.time,0,1)||!integer(p.tick,0,2e9))return null;
