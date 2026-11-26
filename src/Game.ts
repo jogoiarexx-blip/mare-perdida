@@ -12,6 +12,8 @@ import { Inventory } from './player/Inventory';
 import { SurvivalSystem, type Difficulty } from './player/Survival';
 import { PlayerController } from './player/Controller';
 import { HeldTools } from './player/HeldTools';
+import {PresenceSession} from './net/PresenceSession';
+import type {PeerLink} from './net/PeerLink';
 import { HookController } from './player/HookAndTools';
 import { cellKey, moduleKey, RaftGrid } from './raft/Grid';
 import {isArchitecture,nearbyStair,adjacentUpper,nearDoor,UPPER_Y} from './raft/Architecture';
@@ -99,6 +101,7 @@ export class Game {
   private autosaveTimer = 0;
   private saveStatus = 'Salvo';
   private started = false;
+  private peerSession:PresenceSession|null=null;
 
   // Flags persistentes de mundo
   private wreckLooted = false;
@@ -249,7 +252,7 @@ export class Game {
     };
     this.hud.onOpenPanel = (tab) => this.openPanel(tab);
     this.hud.onOpenMenu = () => this.openPauseMenu();
-    this.hud.onNavigation=(action)=>{if(!this.started||this.modals.isOpen())return;if(action==='row')this.toggleRowing();else if(action==='motor')this.toggleMotor();else if(action==='farol_nav')this.toggleEquipment('farol_nav');else this.toggleNavModule(action);};
+    this.hud.onNavigation=(action)=>{if(!this.started||this.modals.isOpen()||this.peerSession)return;if(action==='row')this.toggleRowing();else if(action==='motor')this.toggleMotor();else if(action==='farol_nav')this.toggleEquipment('farol_nav');else this.toggleNavModule(action);};
     this.hud.onTouchMove = (x, y) => {
       this.touchMoveX = x;
       this.touchMoveY = y;
@@ -291,6 +294,7 @@ export class Game {
 
       if (this.modals.isOpen()) return;
       this.keys.add(e.code);
+      if(this.peerSession&&!['KeyV','F3','KeyM'].includes(e.code))return;
 
       if(e.code==='F3'&&!e.repeat){e.preventDefault();this.hud.togglePerformance();}
       else if(e.code==='KeyO'&&!e.repeat){this.toggleRowing();}
@@ -399,6 +403,7 @@ export class Game {
         this.startNewWorld(diff);
         this.startPlay();
       },
+      onPeerPlay:link=>this.startPeerTest(link),
       onImportJson: (raw) => {
         const res = this.store.parseImportJson(raw);
         if (!res.ok) {
@@ -413,11 +418,24 @@ export class Game {
     });
   }
 
-  private startNewWorld(difficulty: Difficulty): void {
+  private startPeerTest(link:PeerLink):void{
+    if(!link.presenceReady||link.sharedSeed===null)return;
+    // Sessão temporária isolada: os saves solo permanecem intactos.
+    this.peerSession=new PresenceSession(link,this.scene);
+    this.startNewWorld('historia',link.sharedSeed);
+    this.player.position.set(link.role==='host'?.15:1.05,.65,.45);
+    this.player.velocity.set(0,0,0);
+    this.shark.mesh.visible=false;this.shark.warningRing.visible=false;
+    this.saveStatus='Teste P2P · sem gravação';
+    this.startPlay();
+    this.hud.pushToast('Teste P2P: ande, pule e nade. Construção e coleta ainda não sincronizadas.','info');
+  }
+
+  private startNewWorld(difficulty: Difficulty,sharedSeed?:number): void {
     this.worldId = `world_${Date.now()}`;
     this.waterFx.reset();
     this.renderOrigin.reset();this.renderer.shadowMap.needsUpdate=true;
-    this.seed = Math.floor(Math.random() * 900000) + 100000;
+    this.seed = sharedSeed ?? Math.floor(Math.random() * 900000) + 100000;
     this.chunks.reset(this.seed);this.greenCampaign.reset(this.seed);
     this.fauna.reset();this.predators.reset();this.lampEnabled=true;this.dive.reset(this.seed,this.options.quality==='baixo');
     this.discovery.reset();this.discovery.visit(0,0);this.helmKey=null;this.rowing=false;this.binocular=false;this.radarTimer=0;this.radarTarget=null;
@@ -449,8 +467,8 @@ export class Game {
     this.quests.syncFoundationCount(this.raftGrid.foundations.size);
 
     this.player.moveToRaftSafe(this.raftRenderer, this.raftGrid);
-    this.quests.triggerInitialDialogues();
-    this.hud.pushToast('Jangada à deriva. Fabrique uma âncora no menu B: 2 sucatas e 1 corda.', 'info');
+    if(!this.peerSession)this.quests.triggerInitialDialogues();
+    if(!this.peerSession)this.hud.pushToast('Jangada à deriva. Fabrique uma âncora no menu B: 2 sucatas e 1 corda.', 'info');
   }
 
   private restoreFromSave(data: WorldSaveData): void {
@@ -522,7 +540,7 @@ export class Game {
       if(this.raftCanMove(prevRaftX+nav.dx,prevRaftZ+nav.dz,nav.heading,prevRaftX,prevRaftZ,prevHeading)){
         this.raftRenderer.heading=nav.heading;this.raftRenderer.x+=nav.dx;this.raftRenderer.z+=nav.dz;
       }
-    } else if (!this.raftGrid.isAnchorDropped()) {
+    } else if (!this.peerSession&&!this.raftGrid.isAnchorDropped()) {
       const sailBoost = this.raftGrid.hasActiveSail() ? 1.55 : 0.32;
       const dirX = -Math.sin(this.raftRenderer.heading);
       const dirZ = -Math.cos(this.raftRenderer.heading);
@@ -578,6 +596,8 @@ export class Game {
     this.yawDeltaAccum = 0;
     this.pitchDeltaAccum = 0;
 
+    // No teste de presença, o movimento funciona, mas a simulação mutável fica isolada.
+    if(this.peerSession)return;
     // Sobrevivência
     const shelterCell=this.raftRenderer.worldToLocalGrid(this.player.position.x,this.player.position.z);
     const sheltered=!this.player.inWater&&this.player.position.y<this.raftRenderer.root.position.y+2.2&&this.raftGrid.modulesAt(shelterCell.gx,shelterCell.gz).some(m=>['cobertura','telhado','piso_superior'].includes(m.kind));
@@ -671,6 +691,7 @@ export class Game {
     }
     this.ocean.update(this.player.position.x, this.player.position.z, this.clock.elapsedSeconds, this.weather.stormFactor);
     this.player.applyToCamera(this.camera, this.clock.elapsedSeconds, this.options.cameraBob);
+    this.peerSession?.update(safeDt,this.player,idle);
     const held=this.inventory.getSelectedSlot()?.itemId;
     this.heldTools.update(held,this.player.thirdPerson,this.player.toolHand,this.camera,idle?0:safeDt,this.clock.elapsedSeconds,Math.hypot(this.player.velocity.x,this.player.velocity.z)>.4,!this.started||this.modals.isOpen()||this.rowing||Boolean(this.helmKey)||Boolean(this.buildRecipe)||this.binocular||this.survival.dead||(held==='gancho'&&this.hook.state.active));
     const fov=this.binocular&&this.inventory.getItemCount('binoculo')?Math.max(18,this.options.fov*.33):this.options.fov;
@@ -777,6 +798,7 @@ export class Game {
   }
 
   private handlePrimaryUse(): void {
+    if(this.peerSession)return;
     if(this.rowing){this.toggleRowing();return;}
     if(this.helmKey)return;
     if (this.buildRecipe) {
@@ -898,6 +920,7 @@ export class Game {
     return true;
   }
   private handleInteract(): void {
+    if(this.peerSession){this.tryBoardRaft();return;}
     if(this.helmKey||this.rowing){this.helmKey=null;this.rowing=false;this.resetMenuInput();this.hud.pushToast('Navegação liberada.','info');return;}
     if(this.tryBoardRaft())return;
     const door=this.getNearbyDoor();if(door){door.active=!door.active;this.raftRenderer.syncDynamicModule(door);this.hud.pushToast(door.active?'Porta aberta.':'Porta fechada.','info');return;}
@@ -1393,6 +1416,7 @@ export class Game {
   }
 
   private openPanel(tab: PanelTab): void {
+    if(this.peerSession){this.hud.pushToast('Painéis e fabricação estarão disponíveis no cooperativo completo.','info');return;}
     this.helmKey=null;this.rowing=false;this.binocular=false;
     if (!this.started) return;
     this.resetMenuInput();
@@ -1417,6 +1441,7 @@ export class Game {
       },
       onExport: () => this.exportSaveFile(),
       onOpenOptions: () => this.openPanel('opcoes'),
+      onLeavePeer:this.peerSession?()=>{this.peerSession?.close();window.location.reload();}:undefined,
     });
   }
 
@@ -1486,6 +1511,7 @@ export class Game {
   }
 
   private async saveWorld(mode: 'rotating' | 'checkpoint'): Promise<void> {
+    if(this.peerSession)return;
     try {
       this.saveStatus = 'Salvando...';
       const data = this.buildSaveData();
@@ -1501,6 +1527,7 @@ export class Game {
   }
 
   private exportSaveFile(): void {
+    if(this.peerSession)return;
     const json = this.store.exportJson(this.buildSaveData());
     const blob = new Blob([json], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -1559,7 +1586,7 @@ export class Game {
       clockText: this.clock.getFormattedTime(),
       dayCount: this.clock.dayCount,
       weather: this.weather.weather,
-      compassText,
+      compassText:this.peerSession?this.peerSession.status:compassText,
       minimap:this.hud.isMinimapVisible()?minimapSvg(this.seed,this.discovery,this.player.position.x,this.player.position.z,this.raftRenderer.x,this.raftRenderer.z,this.player.yaw,radar):'',
       promptText: prompt,
       buildModeLabel: this.buildRecipe ? this.buildRecipe.name : null,
@@ -1569,6 +1596,7 @@ export class Game {
   }
 
   private computePromptText(): string {
+    if(this.peerSession)return 'Teste P2P · E/Ação: subir na jangada · Esc: sair';
     if(this.rowing||this.helmKey)return this.raftGrid.isAnchorDropped()?'Âncora baixada — [H] recolher · [E/Ação] sair':(this.rowing?'Remo':this.raftGrid.modules.get(this.helmKey??'')?.kind==='motor'?'Motor':'Leme')+' · W/S avançar/recuar · A/D virar · [E/Ação] sair';
     if(this.canBoardRaft())return '[E/Ação] Subir na jangada';
     const door=this.getNearbyDoor();if(door)return door.active?'[E/Ação] Fechar porta':'[E/Ação] Abrir porta';
