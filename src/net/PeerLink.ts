@@ -161,7 +161,7 @@ export class PeerLink {
       if(data.startsWith('world:')){
         if(data.length>WORLD_LIMIT+6)return;
         const p=readWorld(data.slice(6));
-        if(!p||p.seq<=this.worldSeq||(this.role==='host'?p.type!=='anchor':p.type==='anchor'))return;
+        if(!p||p.seq<=this.worldSeq||(this.role==='host'?p.type!=='anchor'&&p.type!=='economyRequest':p.type==='anchor'||p.type==='economyRequest'))return;
         this.worldSeq=p.seq;this.worldHandler?.(p);return;
       }
       if(data.length>MAX_CHAT_LENGTH+5)return;
