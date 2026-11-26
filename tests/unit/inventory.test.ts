@@ -32,6 +32,16 @@ describe('Inventory', () => {
     expect(inv2.getItemCount('madeira')).toBe(0);
   });
 
+  it('usa um espaço livre da barra apenas quando a mochila não tem espaço',()=>{
+    const inv=new Inventory(9);
+    inv.addItem('madeira',10);
+    inv.slots[8]={itemId:'plastico',count:20};
+    expect(inv.splitSlot(0)).toBe(true);
+    expect(inv.slots[0]?.count).toBe(5);
+    expect(inv.slots[1]).toEqual({itemId:'madeira',count:5});
+    expect(inv.getItemCount('madeira')).toBe(10);
+  });
+
   it('divide pilhas e aplica penalidade de morte preservando ferramentas e itens de missão', () => {
     const inv = new Inventory(10);
     inv.addItem('madeira', 10);
@@ -40,7 +50,10 @@ describe('Inventory', () => {
 
     expect(inv.splitSlot(0)).toBe(true);
     expect(inv.slots[0]?.count).toBe(5);
-    expect(inv.slots[3]?.count).toBe(5);
+    // Dividir uma pilha prioriza os espaços da mochila, preservando a barra rápida.
+    expect(inv.slots[Inventory.HOTBAR_SIZE]).toEqual({itemId:'madeira',count:5});
+    expect(inv.slots[3]).toBeNull();
+    expect(inv.getItemCount('madeira')).toBe(10);
 
     const dropped = inv.applyNormalDeathPenalty();
     expect(dropped.length).toBeGreaterThan(0);
