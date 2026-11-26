@@ -20,6 +20,7 @@ export interface PanelContext {
   onMoveToHotbar: (index: number) => void;
   onSwapSlots: (from: number, to: number) => void;
   onSplitSlot: (index: number) => void;
+  onOrganizeInventory: () => void;
   onOptionsChanged: (opts: GameOptions) => void;
   onManualSave: () => void;
   onExportSave: () => void;
@@ -209,14 +210,16 @@ export class Modals {
     const slotsHtml = ctx.inventory.slots
       .map((s, idx) => {
         const def = s ? ITEMS[s.itemId] : null;
+        const durability=s?.durability!==undefined&&def?.maxDurability?Math.round(100*s.durability/def.maxDurability):null;
         return `
-          <div class="slot-btn" style="width:100%;height:60px;" data-slot="${idx}" title="${def ? `${def.name}: ${def.description}` : 'Vazio'}">
+          <div class="slot-btn mare-inv-tile ${idx<8?'mare-hot-slot':''} ${idx===ctx.inventory.selectedHotbar?'mare-equipped':''}" data-category="${def?.category??'empty'}" data-slot="${idx}" title="${def ? `${def.name}: ${def.description}` : 'Vazio'}">
             <span class="slot-key">${idx < 8 ? `Barra ${idx + 1}` : idx + 1}</span>
             <span class="slot-art">${def ? gameIcon(def.id,'item') : ''}</span>
             <span class="slot-count">${s ? (s.durability !== undefined ? `${s.durability}` : s.count) : ''}</span>
+            <span class="mare-item-name">${def?.name??'Vazio'}</span>
+            ${durability!==null?`<span class="mare-item-condition"><i style="width:${Math.max(0,Math.min(100,durability))}%"></i></span>`:''}
           </div>`;
-      })
-      .join('');
+      });
 
     const craftRecipes = RECIPES.filter((r) => !r.placesStructure);
     const recipesHtml = craftRecipes
@@ -252,7 +255,8 @@ export class Modals {
         <div>
           <h3 style="margin-top:0;">Mochila (${ctx.inventory.capacity} slots)</h3>
           <div style="font-size:0.8em;color:var(--muted);margin-bottom:8px;">Arraste ou selecione dois espaços para organizar. Use o botão para consumir/equipar.</div>
-          <div class="inv-grid">${slotsHtml}</div>
+          <div class="mare-inv-filter"><input type="search" data-item-search placeholder="Buscar item..." aria-label="Buscar item"><select data-item-category aria-label="Categoria"><option value="all">Todos</option><option value="ferramenta">Ferramentas</option><option value="consumivel">Comida e bebida</option><option value="recurso">Recursos</option><option value="missao">Missões</option><option value="estrutura">Estruturas</option></select></div>
+          <div class="inv-grid mare-inv-layout"><h4>Barra rápida · 1–8</h4><div class="mare-slot-section">${slotsHtml.slice(0,8).join('')}</div><h4>Mochila · reserva</h4><div class="mare-slot-section">${slotsHtml.slice(8).join('')}</div></div>
         </div>
         <div>
           <h3 style="margin-top:0;">Fabricação</h3>
@@ -270,11 +274,23 @@ export class Modals {
         let selected = -1, dragged = -1;
         const tools = document.createElement('div');
         tools.className = 'mare-inventory-actions';
-        tools.innerHTML = '<div class="mare-inventory-hint" aria-live="polite"></div><div class="mare-inventory-buttons"><button type="button" class="btn primary" data-inv-use>Usar / equipar</button><button type="button" class="btn" data-inv-split>Dividir pilha</button><button type="button" class="btn" data-inv-cancel>Cancelar</button></div>';
+        tools.innerHTML = '<div class="mare-inventory-hint" aria-live="polite"></div><div class="mare-item-detail" aria-live="polite"></div><div class="mare-inventory-buttons"><button type="button" class="btn primary" data-inv-use>Usar</button><button type="button" class="btn" data-inv-equip>Equipar</button><button type="button" class="btn" data-inv-split>Dividir pilha</button><button type="button" class="btn" data-inv-sort>Organizar mochila</button><button type="button" class="btn" data-inv-cancel>Cancelar</button></div>';
         grid.after(tools);
         const hint = tools.querySelector<HTMLElement>('.mare-inventory-hint')!;
         const use = tools.querySelector<HTMLButtonElement>('[data-inv-use]')!;
         const split = tools.querySelector<HTMLButtonElement>('[data-inv-split]')!;
+        const equip=tools.querySelector<HTMLButtonElement>('[data-inv-equip]')!;
+        const detail=tools.querySelector<HTMLElement>('.mare-item-detail')!;
+        const search=body.querySelector<HTMLInputElement>('[data-item-search]')!;
+        const category=body.querySelector<HTMLSelectElement>('[data-item-category]')!;
+        const normalize=(v:string)=>v.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+        const filter=()=>{for(const tile of tiles){
+          const empty=tile.dataset.category==='empty';
+          const match=empty||((category.value==='all'||tile.dataset.category===category.value)&&normalize(tile.title).includes(normalize(search.value)));
+          tile.classList.toggle('mare-slot-muted',!match);
+        }};
+        search.addEventListener('input',filter);category.addEventListener('change',filter);
+        tools.querySelector('[data-inv-sort]')!.addEventListener('click',()=>ctx.onOrganizeInventory());
         const cancel = tools.querySelector<HTMLButtonElement>('[data-inv-cancel]')!;
         const paint = () => {
           const slot = ctx.inventory.slots[selected];
@@ -285,7 +301,11 @@ export class Modals {
             tile.setAttribute('aria-label',(idx<8?'Barra rápida '+(idx+1):'Mochila '+(idx+1))+': '+tile.title);
           }
           hint.textContent = slot ? (ITEMS[slot.itemId]?.name ?? slot.itemId)+' selecionado. Toque no destino para trocar.' : 'Selecione um item e toque no destino, ou arraste com o mouse.';
-          use.disabled = !slot; split.disabled = !slot || slot.count<2 || !ctx.inventory.slots.includes(null); cancel.disabled = selected<0;
+          const def=slot?ITEMS[slot.itemId]:null;
+          use.disabled=!def||(def.hungerRestore===undefined&&def.thirstRestore===undefined&&def.healthRestore===undefined);
+          equip.disabled=!slot;
+          split.disabled = !slot || slot.durability!==undefined || slot.count<2 || !ctx.inventory.slots.includes(null); cancel.disabled = selected<0;
+          detail.textContent=slot&&def?def.description+' · Quantidade: '+slot.count+'/'+def.stackMax+(slot.durability!==undefined?' · Durabilidade: '+slot.durability+'/'+(def.maxDurability??slot.durability):''):'Selecione um item para consultar suas informações.';
         };
         const move = (from: number,to: number) => {
           if (from===to || !Number.isInteger(from) || !Number.isInteger(to) || from<0 || to<0 || from>=ctx.inventory.capacity || to>=ctx.inventory.capacity || !ctx.inventory.slots[from]) { selected=-1;paint();return; }
@@ -309,7 +329,8 @@ export class Modals {
           tile.addEventListener('drop',ev=>{ev.preventDefault();tile.classList.remove('mare-slot-target');if(dragged>=0)move(dragged,idx);});
           tile.addEventListener('dragend',()=>{dragged=-1;for(const cell of tiles)cell.classList.remove('mare-slot-target');});
         }
-        use.addEventListener('click',()=>{const idx=selected,slot=ctx.inventory.slots[idx];if(!slot)return;const def=ITEMS[slot.itemId];selected=-1;paint();if(def&&(def.hungerRestore!==undefined||def.thirstRestore!==undefined||def.healthRestore!==undefined))ctx.onUseInventorySlot(idx);else ctx.onMoveToHotbar(idx);});
+        use.addEventListener('click',()=>{if(selected<0||use.disabled)return;ctx.onUseInventorySlot(selected);});
+        equip.addEventListener('click',()=>{if(selected<0)return;ctx.onMoveToHotbar(selected);});
         split.addEventListener('click',()=>{if(selected>=0)ctx.onSplitSlot(selected);});
         cancel.addEventListener('click',()=>{selected=-1;paint();});
         paint();
