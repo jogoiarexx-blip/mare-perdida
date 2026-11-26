@@ -29,11 +29,11 @@ No mobile ou quando ativado em *Opções*, o joystick virtual e os botões de a�
 
 **Âncora:** novos mundos começam à deriva, sem âncora instalada. Colete 2 sucatas e fabrique 1 corda, abra o menu B e posicione a âncora sobre uma fundação. Use H ou o botão Âncora para lançar/recolher. Os mundos salvos mantêm as estruturas existentes.
 
-## Testar conexão P2P
+## Sala P2P
 
-No menu inicial, abra **Testar conexão P2P** em dois navegadores. No primeiro, gere um convite e envie o código à outra pessoa. No segundo, cole o convite, gere uma resposta e devolva o código. No primeiro, cole e aplique a resposta. Use **Medir latência** após conectar. Para repetir depois de desconectar, gere um novo convite.
+No menu inicial, abra **Sala P2P** em dois navegadores. No primeiro, gere um convite e envie o código à outra pessoa. No segundo, cole o convite, gere uma resposta e devolva o código. No primeiro, cole e aplique a resposta. Use **Copiar código** e **Colar código** para facilitar a troca. A latência é medida automaticamente a cada 3 segundos e o chat fica disponível ao conectar. Quedas temporárias têm uma janela de recuperação de até 20 segundos. Se falhar, gere um novo convite.
 
-O diagnóstico usa STUN público do Google para tentar uma conexão direta. Os códigos podem conter endereços de rede, então compartilhe-os apenas com alguém de confiança. A sessão de teste troca apenas mensagens de latência. Salas automáticas, TURN e jogo cooperativo continuam pendentes.
+O diagnóstico usa STUN público do Google para tentar uma conexão direta. Os códigos podem conter endereços de rede, então compartilhe-os apenas com alguém de confiança. A sala troca mensagens de chat e testes de latência, sem sincronizar o mundo ou alterar os saves. TURN, salas automáticas e gameplay cooperativa ainda não estão implementados; redes com NAT restritivo podem precisar de TURN.
 
 ## Estrutura
 - `src/core/`: `Clock`, `EventBus`, `GameLoop`, `SeededRng`
